@@ -50,9 +50,8 @@ read_world :: proc(file_name: cstring) -> (World, bool) {
 
     fmt.println("we got", len(geom), "spheres and", len(materials), "materials")
 
+    // don't need that any longer
     delete(material_names_to_index)
-
-//    set_cam({ 13, 2, 3 }, { 0, 0, 0 }, { 0, 1, 0 }, 20, 10, 0.6)
 
     view := linalg.matrix4_look_at(v3{13,2,3}, v3{0,0,0}, v3{0,1,0})
 
@@ -62,7 +61,7 @@ read_world :: proc(file_name: cstring) -> (World, bool) {
         image_height = 225,
         image_width = 400,
         camera = make_camera(view, 400, 225, 20, 10.0, 0.6),
-        samples_per_pixel = 1
+        samples_per_pixel = 500
     }, true
 }
 
@@ -70,7 +69,7 @@ read_world :: proc(file_name: cstring) -> (World, bool) {
 
 // returns a mapping of material names to indices in the slice of materials
 @(private="file")
-read_materials :: proc(L: ^lua.State) -> (map[string]u32, []Material) {
+read_materials :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Material) {
 
     if lua.istable(L, -1) {
 
@@ -137,7 +136,7 @@ read_materials :: proc(L: ^lua.State) -> (map[string]u32, []Material) {
             lua.pop(L, 1) // pop value, keep key for .next call
         }
 
-        return names_to_index, materials[:]
+        return names_to_index, materials
     }
     else {
         fmt.println("state not a table in read_material")
@@ -148,17 +147,17 @@ read_materials :: proc(L: ^lua.State) -> (map[string]u32, []Material) {
 }
 
 @(private="file")
-read_geometry :: proc(L: ^lua.State, material_name_to_index: map[string]u32) -> []Sphere {
+read_geometry :: proc(L: ^lua.State, material_name_to_index: map[string]u32) -> [dynamic]Sphere {
     if lua.istable(L, -1) {
 
         num_spheres := lua.L_len(L, -1)
 
-        fmt.println("we seem to have", num_spheres, "spheres")
+//        fmt.println("we seem to have", num_spheres, "spheres")
 
-        spheres: [dynamic]Sphere
+        spheres := make([dynamic]Sphere, 0, num_spheres)
 
         // one-based lua arrays
-        for index : = 1 ; index < int(num_spheres) ; index += 1 {
+        for index : = 1 ; index <= int(num_spheres) ; index += 1 {
         // push current sphere table onto stack
             lua.rawgeti(L, -1, lua.Integer(index))
 
@@ -190,7 +189,7 @@ read_geometry :: proc(L: ^lua.State, material_name_to_index: map[string]u32) -> 
 
         }
 
-        return spheres[:]
+        return spheres
     }
     else {
         fmt.println("state not a table in read_geomtry")

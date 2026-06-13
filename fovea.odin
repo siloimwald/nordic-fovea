@@ -64,31 +64,6 @@ main :: proc() {
     buffer := make([]image.RGB_Pixel, world.image_width * world.image_height)
     defer delete(buffer)
 
-    //    materials : []Material = {
-    //        Matte{ v3{ 0.8, 0.8, 0.0 } }, // ground
-    //        Matte{ v3{ 0.1, 0.2, 0.5 } }, // center
-    //        Dielectric{ 1.5 }, // left
-    //        Dielectric{ 1.0 / 1.5 }, // left/bubble
-    //        Metal{ v3{ 0.8, 0.6, 0.2 }, 1 }, // right
-    //    }
-    //
-    //    spheres : []Sphere = {
-    //        Sphere{ center = v3{ 0, -100.5, -1 }, radius = 100, material = 0 },
-    //        Sphere{ center = v3{ 0.0, 0.0, -1.2 }, radius = 0.5, material = 1 },
-    //        Sphere{ center = v3{ -1, 0, -1 }, radius = 0.5, material = 2 },
-    //        Sphere{ center = v3{ -1, 0, -1 }, radius = 0.4, material = 3 },
-    //        Sphere{ center = v3{ 1, 0, -1 }, radius = 0.5, material = 4 },
-    //    }
-    //
-    //    world := World {
-    //        geometries = spheres,
-    //        materials = materials,
-    //        camera = cam,
-    //        samples_per_pixel = samples_per_pixel,
-    //        image_width = image_width,
-    //        image_height = image_height
-    //    }
-
     sw := time.Stopwatch{ }
     time.stopwatch_start(&sw)
 
@@ -126,6 +101,9 @@ main :: proc() {
 
         }
     }
+
+    delete(world.geometries)
+    delete(world.materials)
 
     time.stopwatch_stop(&sw)
     elapsed := time.stopwatch_duration(sw)

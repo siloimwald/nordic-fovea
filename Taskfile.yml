@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  check:
+    cmds:
+      - odin check .
+  run-rel:
+    cmds:
+      - odin run . -o:speed
+  run:
+    cmds:
+      - odin run .
+  check-leak:
+    cmds:
+      - odin build .
+      - valgrind --leak-check=full ./nordic-fovea
+      - rm nordic-fovea

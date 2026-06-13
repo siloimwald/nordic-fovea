@@ -33,7 +33,7 @@ intersect_sphere :: proc(s: Sphere, ray: Ray, interval: RayInterval, isec: ^Inte
 }
 
 intersect_list :: proc(
-world: []Sphere,
+world: [dynamic]Sphere,
 ray: Ray,
 interval: RayInterval,
 isec: ^Intersection,

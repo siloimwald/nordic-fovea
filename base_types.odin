@@ -66,8 +66,8 @@ near_zero :: proc(v: v3) -> bool {
 }
 
 World :: struct {
-    geometries: []Sphere,
-    materials: []Material,
+    geometries: [dynamic]Sphere,
+    materials: [dynamic]Material,
     camera: Camera,
     samples_per_pixel: u32,
     image_width: u32,
