@@ -63,5 +63,13 @@ near_zero :: proc(v: v3) -> bool {
     abs_v.y < linalg.F32_EPSILON &&
     abs_v.z < linalg.F32_EPSILON \
     )
+}
 
+World :: struct {
+    geometries: []Sphere,
+    materials: []Material,
+    camera: Camera,
+    samples_per_pixel: u32,
+    image_width: u32,
+    image_height: u32,
 }

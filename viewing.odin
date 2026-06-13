@@ -5,6 +5,8 @@ import "core:math/linalg"
 
 make_camera :: proc(
 look_at: linalg.Matrix4f32,
+image_width: u32,
+image_height: u32,
 vertical_fov: f32,
 focus_distance: f32,
 defocus_angle: f32,
