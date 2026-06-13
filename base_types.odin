@@ -1,10 +1,14 @@
 package fovea
 
 import "core:math/linalg"
+import "core:math"
 
 v4 :: linalg.Vector4f32
 v3 :: linalg.Vector3f32
 v2 :: linalg.Vector2f32
+
+PosInf := math.inf_f32(1)
+NegInf := math.inf_f32(-1)
 
 RayInterval :: struct {
     t_min: f32,

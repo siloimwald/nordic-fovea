@@ -61,6 +61,8 @@ main :: proc() {
         return
     }
 
+    build_bvh_tree(world.geometries)
+
     buffer := make([]image.RGB_Pixel, world.image_width * world.image_height)
     defer delete(buffer)
 

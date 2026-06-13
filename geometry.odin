@@ -3,6 +3,13 @@ package fovea
 import "core:math"
 import "core:math/linalg"
 
+get_sphere_bounds :: proc(s: Sphere) -> BoundingBox {
+    return BoundingBox {
+        min = s.center - v3{s.radius, s.radius, s.radius},
+        max = s.center + v3{s.radius, s.radius, s.radius}
+    }
+}
+
 intersect_sphere :: proc(s: Sphere, ray: Ray, interval: RayInterval, isec: ^Intersection) -> bool {
     oc := s.center - ray.origin
     a := linalg.length2(ray.direction)
@@ -48,3 +55,4 @@ isec: ^Intersection,
     }
     return any_hit
 }
+

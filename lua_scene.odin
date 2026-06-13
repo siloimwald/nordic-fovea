@@ -61,7 +61,7 @@ read_world :: proc(file_name: cstring) -> (World, bool) {
         image_height = 225,
         image_width = 400,
         camera = make_camera(view, 400, 225, 20, 10.0, 0.6),
-        samples_per_pixel = 500
+        samples_per_pixel = 1
     }, true
 }
 
