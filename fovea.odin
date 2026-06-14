@@ -8,23 +8,20 @@ import "core:math/linalg"
 import "core:math/rand"
 import "core:time"
 
-//import lua "vendor:lua/5.4"
+max_depth :: 50
 
-max_depth : int : 50
-
-
-color_ray :: proc(world: ^World, ray: Ray) -> v3 {
+color_ray :: proc(tree: BVHTree, materials: [dynamic]Material, ray: Ray) -> v3 {
     ray := ray
     isec := Intersection{ }
     throughput := v3{ 1, 1, 1 }
     accumulated := v3{ }
     for _ in 0 ..< max_depth {
         interval := RayInterval{ 0.0001, 1e16 }
-        if intersect_list(world.geometries, ray, interval, &isec) {
+        if intersect_bvh(tree, ray, interval, &isec) {
             ray_out := Ray{ }
             attenuation := v3{ }
             do_scatter := false
-            switch m in world.materials[isec.material] {
+            switch m in materials[isec.material] {
             case Matte:
                 do_scatter = evaluate_matte(m, ray, &isec, &ray_out, &attenuation)
             case Metal:
@@ -49,6 +46,7 @@ color_ray :: proc(world: ^World, ray: Ray) -> v3 {
     return accumulated
 }
 
+
 main :: proc() {
 
 // faster than the default, but still plenty "random" enough
@@ -61,7 +59,8 @@ main :: proc() {
         return
     }
 
-    build_bvh_tree(world.geometries)
+    bvh := build_bvh_tree(world.geometries)
+    defer delete_tree(bvh)
 
     buffer := make([]image.RGB_Pixel, world.image_width * world.image_height)
     defer delete(buffer)
@@ -92,7 +91,7 @@ main :: proc() {
             color := v3{ }
             for _ in 0 ..< world.samples_per_pixel {
                 ray := get_ray(world.camera, f32(x), f32(y))
-                color += color_ray(&world, ray)
+                color += color_ray(bvh, world.materials, ray)
             }
             color *= (1.0 / f32(world.samples_per_pixel))
             buffer[(world.image_height - y - 1) * world.image_width + x].rgb = [3]u8 {
@@ -104,7 +103,7 @@ main :: proc() {
         }
     }
 
-    delete(world.geometries)
+    // deleting the tree takes care of deleting scene primitives
     delete(world.materials)
 
     time.stopwatch_stop(&sw)

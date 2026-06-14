@@ -1,37 +1,122 @@
 package fovea
 
+import "core:container/queue"
 import fmt "core:fmt"
 import "core:math/linalg"
+/*
+    BVH from the previous (C#) iteration, based on PBR book.
+    (https://pbr-book.org/4ed/Primitives_and_Intersection_Acceleration/Bounding_Volume_Hierarchies)
+    - verify the whole slice/dynamic array mess and actual binning logic
+*/
 
-// BVH based on the previous (C#) iteration, somewhat based on PBRT book.
-// needs some serious review and documentation, i should read that book again :)
-// see if can work exclusively on centroids instead of passing bounds around
-// verify the whole slice/dynamic array mess and actual binning logic
+// max tree depth
+@(private="file")
+max_depth :: 12
 
+// buckets to use for surface area heuristic
 @(private="file")
-max_depth := 32 // max tree depth
-@(private="file")
-bucket_count := 128 // buckets to use for surface area heuristic
-@(private="file")
-volume_threshold : f32 = 1e-4 // build a leaf if node volume is below this value
-@(private="file")
-min_prim_count := 2 // don't split further if node has at most this amount of primitives
+bucket_count :: 12
 
-// a bounding box is defined by the two positions
-// that are min/max in each dimension
+// don't split further if node volume goes below this value
+@(private="file")
+volume_threshold :: 1e-4
+
+// don't split further if node has at most this amount of primitives
+@(private="file")
+min_prim_count :: 2
+
+// a bounding box is defined by the two positions that are min/max in each dimension
 BoundingBox :: struct {
     min: v3,
     max: v3
 }
 
+ray_intersect_box :: proc(b: BoundingBox, ray: Ray, interval: RayInterval) -> bool {
+
+    interval := interval
+    // pretend we pre-computed that for now
+    inv_dir := 1.0 / ray.direction
+    for a := 0 ; a < 3 ; a += 1 {
+        t0 := (b.min[a] - ray.origin[a]) * inv_dir[a]
+        t1 := (b.max[a] - ray.origin[a]) * inv_dir[a]
+
+        if inv_dir[a] < 0 {
+            t0, t1 = t1, t0
+        }
+
+        if t0 > interval.t_min {
+            interval.t_min = t0
+        }
+
+        if t1 < interval.t_max {
+            interval.t_max = t1
+        }
+
+        if interval.t_max <= interval.t_min {
+            return false
+        }
+    }
+    return true
+}
+
+// a node within the BVH tree
 BVHNode :: struct {
     bounds: BoundingBox,
-    // primitives in this node, zero for inner nodes
+    // primitive count in this node, zero for inner nodes
     count: int,
     // index in node array to right child, left child is implicitly
     // positioned at index + 1. For leaves this indexes into the
     // primitive array/slice
     next: int
+}
+
+// the whole tree is simply all the nodes, index 0 being the root
+// the primitive array is sorted according to the indices within nodes, i.e. primitives
+// within a leaf are next to each other
+BVHTree :: struct {
+    geometries: [dynamic]Primitive,
+    nodes: [dynamic]BVHNode
+}
+
+intersect_bvh :: proc(tree: BVHTree, ray: Ray, interval: RayInterval, intersection: ^Intersection) -> bool {
+
+    interval := interval
+    node_stack : [max_depth * 2]int
+    node_stack = -1
+
+    // push root node
+    stack_pointer := 1
+    node_stack[0] = 0
+
+    hit := false
+
+    for stack_pointer > 0 {
+        node_index := node_stack[stack_pointer - 1]
+        stack_pointer -= 1
+
+        node := tree.nodes[node_index]
+
+        if !ray_intersect_box(node.bounds, ray, interval) {
+            continue;
+        }
+
+        // leaf?
+        if node.count > 0 {
+            for p := node.next ; p < node.next + node.count ; p += 1 {
+                if intersect_sphere(tree.geometries[p], ray, interval, intersection) {
+                    interval.t_max = intersection.ray_t
+                    hit = true
+                }
+            }
+        }
+        else {
+            node_stack[stack_pointer] = node_index + 1
+            node_stack[stack_pointer + 1] = node.next
+            stack_pointer += 2
+        }
+    }
+
+    return hit
 }
 
 // creates the empty box, spanning min=[inf,..] to max[-inf]
@@ -43,6 +128,7 @@ get_empty_bounds :: proc() -> BoundingBox {
     }
 }
 
+// compute the union of two bounding box, such that the result tightly contains both argument boxes
 bounds_union :: proc(a: BoundingBox, b: BoundingBox) -> BoundingBox {
     return BoundingBox {
         min = linalg.min(a.min, b.min),
@@ -50,19 +136,23 @@ bounds_union :: proc(a: BoundingBox, b: BoundingBox) -> BoundingBox {
     }
 }
 
+// compute the size of the bounding box in all three dimensions
 get_bounds_extent :: proc(bounds: BoundingBox) -> v3 {
     return bounds.max - bounds.min
 }
 
+// compute the geometric center of the box
 get_bounds_centroid :: proc(bounds: BoundingBox) -> v3 {
-    return bounds.min + get_bounds_extent(bounds) * 0.5
+    return bounds.min * 0.5 + bounds.max * 0.5
 }
 
+// gets the bounding box volume
 get_bounds_volume :: proc(bounds: BoundingBox) -> f32 {
     ext := get_bounds_extent(bounds)
     return ext.x * ext.y * ext.z
 }
 
+// area of box
 get_bounds_area :: proc(bounds: BoundingBox) -> f32 {
     ext := get_bounds_extent(bounds)
     return 2.0 * (ext.x * ext.y + ext.y * ext.z + ext.z * ext.x)
@@ -88,27 +178,31 @@ get_offset :: proc(bounds: BoundingBox, centroid: v3) -> v3 {
 // change across calls
 @(private="file")
 BuilderState :: struct {
-    nodes: [dynamic]BVHNode, // current nodes
-    prim_boxes: []BoundingBox, // all boxes
-    primitives: [dynamic]Sphere, // gets sorted in-place
-    buckets: [dynamic]SAHBucket // allocated once
+// current nodes
+    nodes: [dynamic]BVHNode,
+    // all boxes
+    prim_boxes: []BoundingBox,
+    // gets sorted in-place
+    primitives: [dynamic]Primitive
 }
 
 @(private="file")
 SAHBucket :: struct {
-    bounds: BoundingBox, // bounds of this bucket
-    count: int, // primitives in projected into this bucket
-    left_count: int, // primitive count of all buckets left of this one including this one
-    right_count: int, // primitive count of all buckets right of this one
-    left_area: f32 // summed area of buckets left to this one
+// bounds of this bucket
+    bounds: BoundingBox,
+    // primitives projected into this bucket
+    count: int,
 }
 
-build_bvh_tree :: proc(prims: [dynamic]Sphere) {
 
-// we know the node bounds on the tree in advance
-    nodes := make([dynamic]BVHNode, 0, len(prims) * 2)
-    // all bounding boxes. These are carried along during construction
-    // and are delete at the end
+delete_tree :: proc(tree: BVHTree) {
+    delete(tree.geometries)
+    delete(tree.nodes)
+}
+
+build_bvh_tree :: proc(prims: [dynamic]Primitive) -> BVHTree {
+
+// all bounding boxes. These are carried along during construction and are deleted at the end
     boxes := make([dynamic]BoundingBox, 0, len(prims))
     defer delete(boxes)
 
@@ -124,17 +218,53 @@ build_bvh_tree :: proc(prims: [dynamic]Sphere) {
     fmt.println("Scene bounds:", scene_bounds)
 
     state := BuilderState {
-        nodes = nodes,
+        nodes = make([dynamic]BVHNode, 0, len(prims) * 2),
         prim_boxes = boxes[:],
-        buckets = make([dynamic]SAHBucket, 0, bucket_count),
         primitives = prims
     }
 
-    defer delete(state.buckets)
-    defer delete(state.nodes)
+    resize(&state.nodes, len(state.nodes))
 
     build_node(scene_bounds, 0, len(boxes), 0, &state)
 
+    // print some stats
+    max_leaf_size := 0
+    prim_count := 0
+    leaf_count := 0
+    inner_node_count := 0
+
+    // odin queue is double-ended and can also be used as a stack
+    stack : queue.Queue(int)
+    queue.init(&stack)
+
+    // push root
+    queue.append(&stack, 0)
+    for queue.len(stack) > 0 {
+        node_index := queue.pop_back(&stack)
+        node := state.nodes[node_index]
+
+        if node.count == 0 {
+            inner_node_count += 1
+            queue.push_back(&stack, node_index + 1 )
+            queue.push_back(&stack, node.next)
+        }
+        else {
+            prim_count += node.count
+            max_leaf_size = max(max_leaf_size, node.count)
+            leaf_count += 1
+        }
+    }
+
+    queue.destroy(&stack)
+
+    fmt.println("** Some tree stats **")
+    fmt.println("Primitive Count:", prim_count, "max. leaf size:", max_leaf_size)
+    fmt.println("inner node count", inner_node_count, "leaf nodes", leaf_count, "total node count", len(state.nodes))
+
+    return BVHTree {
+        nodes = state.nodes,
+        geometries = state.primitives
+    }
 }
 
 @(private="file")
@@ -149,10 +279,8 @@ make_leaf :: proc(state: ^BuilderState, box: BoundingBox, first_prim: int, count
 
 @(private="file")
 bucket_projection :: proc(node_centroid: BoundingBox, prim_centroid: v3, axis: int) -> int {
-//    fmt.println(prim_centroid)
-//    fmt.println(get_offset(node_centroid, prim_centroid)[axis])
-    offset :=  get_offset(node_centroid, prim_centroid)[axis]
-    assert(offset >= 0 && offset <= 1)
+    offset := get_offset(node_centroid, prim_centroid)[axis]
+
     b := int(f32(bucket_count) * offset)
     if b == bucket_count {
         b -= 1
@@ -166,20 +294,12 @@ build_node :: proc(node_bounds: BoundingBox, left: int, right: int, depth: int, 
 // left and right are indices into the prim (bounds) array
     count := right - left
 
-    fmt.println("at depth", depth, "count", count)
-
-    assert(len(state.prim_boxes) > 0)
-    assert(len(state.primitives) > 0)
-
     // done?
     if depth > max_depth || count <= min_prim_count {
-    // make leaf
         make_leaf(state, node_bounds, left, count)
-//        state.nodes[state.node_index] =
-//        state.node_index = state.node_index + 1
     }
     else {
-    // compute a bounding box which contains all centroids of all boxes
+    // compute a bounding box which contains all centroids of all boxes at this stage
         centroid_min := v3{ PosInf, PosInf, PosInf }
         centroid_max := v3{ NegInf, NegInf, NegInf }
 
@@ -193,23 +313,15 @@ build_node :: proc(node_bounds: BoundingBox, left: int, right: int, depth: int, 
 
         if get_bounds_volume(centroid_bounds) < volume_threshold {
             make_leaf(state, node_bounds, left, count)
-//            state.nodes[state.node_index] =
-//            state.node_index = state.node_index + 1
         }
         else {
             area := get_bounds_area(node_bounds)
             axis, bucket, cost := get_best_split(centroid_bounds, area, left, right, state)
 
-            fmt.println("split inner at axis", axis, "costs", cost)
             // splitting is better than doing a leaf
             if cost < f32(count) {
                 left_box := get_empty_bounds()
                 right_box := get_empty_bounds()
-
-                // old code:why
-                //                if bucket == bucket_count - 1 {
-                //                    bucket -= 1
-                //                }
 
                 // in-place sort according to split
                 // first index to sort primitives on the left side into
@@ -231,9 +343,8 @@ build_node :: proc(node_bounds: BoundingBox, left: int, right: int, depth: int, 
                             state.prim_boxes[left_index] = tmp_box
                         }
 
+                        left_box = bounds_union(left_box, state.prim_boxes[left_index])
                         left_index += 1
-                        // TODO: review this, should be correct, C# code worked on reference, were swapping won't matter
-                        left_box = bounds_union(left_box, state.prim_boxes[p])
 
                     }
                     else {
@@ -247,15 +358,17 @@ build_node :: proc(node_bounds: BoundingBox, left: int, right: int, depth: int, 
                 append(&state.nodes, BVHNode {
                     bounds = node_bounds
                 })
+
                 inner_node_index := len(state.nodes) - 1
+                // the next node that will get appended is our left child, which sits implicitly
+                // at our own index + 1
                 build_node(left_box, left, middle, depth + 1, state)
-                state.nodes[inner_node_index].next = len(state.nodes) - 1
+                // the next node that will get appended is our right child
+                state.nodes[inner_node_index].next = len(state.nodes)
                 build_node(right_box, middle, right, depth + 1, state)
             }
             else {
                 make_leaf(state, node_bounds, left, count)
-            //                state.nodes[state.node_index] =
-            //                state.node_index = state.node_index + 1
             }
         }
 
@@ -276,62 +389,54 @@ state: ^BuilderState) -> (axis: int, bucket: int, costs: f32) {
     best_costs := PosInf
     best_axis := -1
 
-    assert((right - left) > 0)
-
     // do this for all three dimensions
     for axis := 0 ; axis < 3; axis += 1 {
 
-        clear(&state.buckets)
-
-        // reset all buckets for this axis
-        for b := 0 ; b < bucket_count ; b += 1 {
-            append(&state.buckets, SAHBucket {
-                bounds = get_empty_bounds(),
-                count = 0
-            })
+        buckets : [bucket_count]SAHBucket
+        buckets = SAHBucket{
+            bounds = get_empty_bounds(),
+            count = 0
         }
 
         // project primitives into their bucket
         for p := left ; p < right ; p += 1 {
             bucket_num := bucket_projection(node_centroid_bounds, get_bounds_centroid(state.prim_boxes[p]), axis)
-            state.buckets[bucket_num].count += 1
-            state.buckets[bucket_num].bounds =
-            bounds_union(state.buckets[bucket_num].bounds, state.prim_boxes[p])
+            buckets[bucket_num].count += 1
+            buckets[bucket_num].bounds =
+            bounds_union(buckets[bucket_num].bounds, state.prim_boxes[p])
         }
 
         sweepLeftBox := get_empty_bounds()
-        sweepRightBox := get_empty_bounds()
 
         // sweep left and right and collect areas / primitive counts for each split along bucket boundaries
-        for b := 0 ; b < bucket_count ; b += 1 {
-            sweepLeftBox = bounds_union(sweepLeftBox, state.buckets[b].bounds)
-            state.buckets[b].left_area = get_bounds_area(sweepLeftBox)
-            state.buckets[b].left_count = state.buckets[b].count
-            if b > 0 {
-                state.buckets[b].left_count += state.buckets[b - 1].left_count
-            }
+
+        count_left := 0
+        costs : [bucket_count - 1]f32;
+        // probably not necessary, since 0 is the zero value
+        costs = 0.0
+
+        for b := 0 ; b < bucket_count - 1; b += 1 {
+            sweepLeftBox = bounds_union(sweepLeftBox, buckets[b].bounds)
+            count_left += buckets[b].count
+            costs[b] += f32(count_left) * get_bounds_area(sweepLeftBox)
         }
 
+        sweepRightBox := get_empty_bounds()
+        count_right := 0
 
+        for b := bucket_count - 1 ; b >= 1 ; b -= 1 {
+            sweepRightBox = bounds_union(sweepRightBox, buckets[b].bounds)
+            count_right += buckets[b].count
+            costs[b - 1] += f32(count_right) * get_bounds_area(sweepRightBox)
+        }
 
-        for b := bucket_count - 1 ; b >= 0 ; b -= 1 {
-            sweepRightBox = bounds_union(sweepRightBox, state.buckets[b].bounds)
-            right_area := get_bounds_area(sweepRightBox)
-            state.buckets[b].right_count = state.buckets[b].count
-            if b < bucket_count - 1 {
-                state.buckets[b].right_count += state.buckets[b + 1].right_count
-            }
-
-            // split cost
-            costs := (state.buckets[b].left_area / node_area) * f32(state.buckets[b].left_count) +
-            (right_area / node_area) * f32(state.buckets[b].right_count)
-
-            if costs < best_costs {
-                best_costs = costs
+        // check best costs for this axis
+        for b := 0 ; b < bucket_count - 1 ; b += 1 {
+            if costs[b] < best_costs {
+                best_costs = 1.0 / 2.0 + costs[b] / node_area
                 best_axis = axis
                 best_bucket = b
             }
-
         }
 
     } // end-for each axis

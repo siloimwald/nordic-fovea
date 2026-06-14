@@ -7,6 +7,10 @@ v4 :: linalg.Vector4f32
 v3 :: linalg.Vector3f32
 v2 :: linalg.Vector2f32
 
+// this should make it easier to switch to a primitive union later, rather
+// than replacing sphere all over the place
+Primitive :: Sphere
+
 PosInf := math.inf_f32(1)
 NegInf := math.inf_f32(-1)
 
