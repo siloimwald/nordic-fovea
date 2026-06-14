@@ -103,7 +103,7 @@ intersect_bvh :: proc(tree: BVHTree, ray: Ray, interval: RayInterval, intersecti
         // leaf?
         if node.count > 0 {
             for p := node.next ; p < node.next + node.count ; p += 1 {
-                if intersect_sphere(tree.geometries[p], ray, interval, intersection) {
+                if intersect_primitive(tree.geometries[p], ray, interval, intersection) {
                     interval.t_max = intersection.ray_t
                     hit = true
                 }
@@ -210,7 +210,7 @@ build_bvh_tree :: proc(prims: [dynamic]Primitive) -> BVHTree {
 
     // compute scene bounds and bounding boxes of all scene elements
     for p in prims {
-        prim_bounds := get_sphere_bounds(p)
+        prim_bounds := get_primitive_bounds(p)
         scene_bounds = bounds_union(scene_bounds, prim_bounds)
         append(&boxes, prim_bounds)
     }

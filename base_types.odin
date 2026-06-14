@@ -7,10 +7,6 @@ v4 :: linalg.Vector4f32
 v3 :: linalg.Vector3f32
 v2 :: linalg.Vector2f32
 
-// this should make it easier to switch to a primitive union later, rather
-// than replacing sphere all over the place
-Primitive :: Sphere
-
 PosInf := math.inf_f32(1)
 NegInf := math.inf_f32(-1)
 
@@ -18,14 +14,6 @@ RayInterval :: struct {
     t_min: f32,
     t_max: f32,
 }
-
-
-Sphere :: struct {
-    center: v3,
-    radius: f32,
-    material: u32,
-}
-
 
 interval_contains :: proc(interval: RayInterval, t: f32) -> bool {
     return interval.t_min <= t && t <= interval.t_max
@@ -74,7 +62,7 @@ near_zero :: proc(v: v3) -> bool {
 }
 
 World :: struct {
-    geometries: [dynamic]Sphere,
+    geometries: [dynamic]Primitive,
     materials: [dynamic]Material,
     camera: Camera,
     samples_per_pixel: u32,

@@ -48,7 +48,7 @@ read_world :: proc(file_name: cstring) -> (World, bool) {
         fmt.println("lua stack empty, all good")
     }
 
-    fmt.println("we got", len(geom), "spheres and", len(materials), "materials")
+    fmt.println("we got", len(geom), "prims and", len(materials), "materials")
 
     // don't need that any longer
     delete(material_names_to_index)
@@ -61,7 +61,7 @@ read_world :: proc(file_name: cstring) -> (World, bool) {
         image_height = 225,
         image_width = 400,
         camera = make_camera(view, 400, 225, 20, 10.0, 0.6),
-        samples_per_pixel = 1
+        samples_per_pixel = 500
     }, true
 }
 
@@ -147,14 +147,14 @@ read_materials :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Material) {
 }
 
 @(private="file")
-read_geometry :: proc(L: ^lua.State, material_name_to_index: map[string]u32) -> [dynamic]Sphere {
+read_geometry :: proc(L: ^lua.State, material_name_to_index: map[string]u32) -> [dynamic]Primitive {
     if lua.istable(L, -1) {
 
         num_spheres := lua.L_len(L, -1)
 
 //        fmt.println("we seem to have", num_spheres, "spheres")
 
-        spheres := make([dynamic]Sphere, 0, num_spheres)
+        spheres := make([dynamic]Primitive, 0, num_spheres)
 
         // one-based lua arrays
         for index : = 1 ; index <= int(num_spheres) ; index += 1 {

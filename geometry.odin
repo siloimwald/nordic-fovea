@@ -3,13 +3,39 @@ package fovea
 import "core:math"
 import "core:math/linalg"
 
-get_sphere_bounds :: proc(s: Sphere) -> BoundingBox {
-    return BoundingBox {
-        min = s.center - v3{s.radius, s.radius, s.radius},
-        max = s.center + v3{s.radius, s.radius, s.radius}
+// this should make it easier to switch to a primitive union later, rather
+// than replacing sphere all over the place
+Primitive :: union {
+    Sphere
+}
+
+Sphere :: struct {
+    center: v3,
+    radius: f32,
+    material: u32,
+}
+
+get_primitive_bounds :: proc(prim: Primitive) -> BoundingBox {
+    switch p in prim {
+    case Sphere:
+        return BoundingBox {
+            min = p.center - v3{ p.radius, p.radius, p.radius },
+            max = p.center + v3{ p.radius, p.radius, p.radius }
+        }
+    // might as well panic
+    case: return get_empty_bounds()
     }
 }
 
+intersect_primitive :: proc(prim: Primitive, ray: Ray, interval: RayInterval, isec: ^Intersection) -> bool {
+    switch p in prim {
+    case Sphere:
+        return intersect_sphere(p, ray, interval, isec)
+    case: return false
+    }
+}
+
+@(private="file")
 intersect_sphere :: proc(s: Sphere, ray: Ray, interval: RayInterval, isec: ^Intersection) -> bool {
     oc := s.center - ray.origin
     a := linalg.length2(ray.direction)
@@ -39,20 +65,4 @@ intersect_sphere :: proc(s: Sphere, ray: Ray, interval: RayInterval, isec: ^Inte
     }
 }
 
-intersect_list :: proc(
-world: [dynamic]Sphere,
-ray: Ray,
-interval: RayInterval,
-isec: ^Intersection,
-) -> bool {
-    any_hit := false
-    current_interval := interval
-    for k := 0; k < len(world); k += 1 {
-        if intersect_sphere(world[k], ray, current_interval, isec) {
-            any_hit = true
-            current_interval.t_max = isec.ray_t
-        }
-    }
-    return any_hit
-}
 
