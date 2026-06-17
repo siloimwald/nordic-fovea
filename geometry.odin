@@ -6,12 +6,12 @@ import "core:math/linalg"
 // this should make it easier to switch to a primitive union later, rather
 // than replacing sphere all over the place
 Primitive :: union {
-    Sphere
+    Sphere,
 }
 
 Sphere :: struct {
-    center: v3,
-    radius: f32,
+    center:   v3,
+    radius:   f32,
     material: u32,
 }
 
@@ -19,24 +19,36 @@ get_primitive_bounds :: proc(prim: Primitive) -> BoundingBox {
     switch p in prim {
     case Sphere:
         return BoundingBox {
-            min = p.center - v3{ p.radius, p.radius, p.radius },
-            max = p.center + v3{ p.radius, p.radius, p.radius }
+            min = p.center - v3{p.radius, p.radius, p.radius},
+            max = p.center + v3{p.radius, p.radius, p.radius},
         }
     // might as well panic
-    case: return get_empty_bounds()
+    case:
+        return get_empty_bounds()
     }
 }
 
-intersect_primitive :: proc(prim: Primitive, ray: Ray, interval: RayInterval, isec: ^Intersection) -> bool {
+intersect_primitive :: proc(
+    prim: Primitive,
+    ray: Ray,
+    interval: RayInterval,
+    isec: ^Intersection,
+) -> bool {
     switch p in prim {
     case Sphere:
         return intersect_sphere(p, ray, interval, isec)
-    case: return false
+    case:
+        return false
     }
 }
 
-@(private="file")
-intersect_sphere :: proc(s: Sphere, ray: Ray, interval: RayInterval, isec: ^Intersection) -> bool {
+@(private = "file")
+intersect_sphere :: proc(
+    s: Sphere,
+    ray: Ray,
+    interval: RayInterval,
+    isec: ^Intersection,
+) -> bool {
     oc := s.center - ray.origin
     a := linalg.length2(ray.direction)
     h := linalg.dot(ray.direction, oc)
@@ -57,12 +69,14 @@ intersect_sphere :: proc(s: Sphere, ray: Ray, interval: RayInterval, isec: ^Inte
         }
 
         isec.location = ray_points_at(ray, root)
-        set_face_normal(isec, ray.direction, (isec.location - s.center) / s.radius)
+        set_face_normal(
+            isec,
+            ray.direction,
+            (isec.location - s.center) / s.radius,
+        )
         isec.ray_t = root
         isec.material = s.material
 
         return true
     }
 }
-
-

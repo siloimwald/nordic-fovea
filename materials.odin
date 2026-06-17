@@ -15,7 +15,7 @@ Matte :: struct {
 
 Metal :: struct {
     albedo: v3,
-    fuzz: f32,
+    fuzz:   f32,
 }
 
 Dielectric :: struct {
@@ -23,11 +23,11 @@ Dielectric :: struct {
 }
 
 evaluate_matte :: proc(
-m: Matte,
-ray_in: Ray,
-isec: ^Intersection,
-ray_out: ^Ray,
-attenuation: ^v3,
+    m: Matte,
+    ray_in: Ray,
+    isec: ^Intersection,
+    ray_out: ^Ray,
+    attenuation: ^v3,
 ) -> bool {
     scatter_direction := isec.normal + random_unit_vector()
 
@@ -43,11 +43,11 @@ attenuation: ^v3,
 }
 
 evaluate_metal :: proc(
-m: Metal,
-ray_in: Ray,
-isec: ^Intersection,
-ray_out: ^Ray,
-attenuation: ^v3,
+    m: Metal,
+    ray_in: Ray,
+    isec: ^Intersection,
+    ray_out: ^Ray,
+    attenuation: ^v3,
 ) -> bool {
     reflected := linalg.reflect(ray_in.direction, isec.normal)
     reflected = linalg.normalize(reflected) + (random_unit_vector() * m.fuzz)
@@ -59,15 +59,14 @@ attenuation: ^v3,
     return linalg.dot(ray_out.direction, isec.normal) > 0
 }
 
-
 evaluate_dielectric :: proc(
-m: Dielectric,
-ray_in: Ray,
-isec: ^Intersection,
-ray_out: ^Ray,
-attenuation: ^v3,
+    m: Dielectric,
+    ray_in: Ray,
+    isec: ^Intersection,
+    ray_out: ^Ray,
+    attenuation: ^v3,
 ) -> bool {
-    attenuation^ = v3{ 1, 1, 1 }
+    attenuation^ = v3{1, 1, 1}
     ri := 1.0 / m.ior if isec.front_face else m.ior
     unit_dir := linalg.normalize(ray_in.direction)
 
@@ -76,8 +75,7 @@ attenuation: ^v3,
     cannot_refract := ri * sin_theta > 1
 
     out_dir :=
-    linalg.reflect(unit_dir, isec.normal) if cannot_refract \
-            else linalg.refract(linalg.normalize(ray_in.direction), isec.normal, ri)
+        linalg.reflect(unit_dir, isec.normal) if cannot_refract else linalg.refract(linalg.normalize(ray_in.direction), isec.normal, ri)
 
     ray_out^ = Ray {
         origin    = isec.location,
