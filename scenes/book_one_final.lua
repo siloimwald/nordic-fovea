@@ -1,5 +1,4 @@
--- currently needs to match the working directory cargo is run from
--- need to find some other clever way or provide it in rust directly
+-- currently needs to match the working directory odin is run from
 dofile('./scenes/scene_helpers.lua')
 
 Scene.samples_per_pixel = 10
