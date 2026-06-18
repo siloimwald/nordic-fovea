@@ -34,10 +34,7 @@ evaluate_matte :: proc(
     if near_zero(scatter_direction) {
         scatter_direction = isec.normal
     }
-    ray_out^ = Ray {
-        origin    = isec.location,
-        direction = scatter_direction,
-    }
+    ray_out^ = new_ray(isec.location, scatter_direction)
     attenuation^ = m.albedo
     return true
 }
@@ -51,10 +48,7 @@ evaluate_metal :: proc(
 ) -> bool {
     reflected := linalg.reflect(ray_in.direction, isec.normal)
     reflected = linalg.normalize(reflected) + (random_unit_vector() * m.fuzz)
-    ray_out^ = Ray {
-        origin    = isec.location,
-        direction = reflected,
-    }
+    ray_out^ = new_ray(isec.location, reflected)
     attenuation^ = m.albedo
     return linalg.dot(ray_out.direction, isec.normal) > 0
 }
@@ -77,9 +71,7 @@ evaluate_dielectric :: proc(
     out_dir :=
         linalg.reflect(unit_dir, isec.normal) if cannot_refract else linalg.refract(linalg.normalize(ray_in.direction), isec.normal, ri)
 
-    ray_out^ = Ray {
-        origin    = isec.location,
-        direction = out_dir,
-    }
+    ray_out^ = new_ray(isec.location, out_dir)
     return true
 }
+

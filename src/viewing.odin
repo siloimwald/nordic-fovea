@@ -56,8 +56,6 @@ get_ray :: proc(c: Camera, px: f32, py: f32) -> Ray {
         (c.cam_to_world * v4{cam_dir.x, cam_dir.y, cam_dir.z, 1}).xyz -
         origin_world
 
-    return Ray {
-        origin = origin_world,
-        direction = linalg.normalize(direction_world),
-    }
+    return new_ray(origin_world, linalg.normalize(direction_world))
 }
+

@@ -38,13 +38,12 @@ ray_intersect_box :: proc(
 ) -> bool {
 
     interval := interval
-    // pretend we pre-computed that for now
-    inv_dir := 1.0 / ray.direction
-    for a := 0; a < 3; a += 1 {
-        t0 := (b.min[a] - ray.origin[a]) * inv_dir[a]
-        t1 := (b.max[a] - ray.origin[a]) * inv_dir[a]
 
-        if inv_dir[a] < 0 {
+    for a := 0; a < 3; a += 1 {
+        t0 := (b.min[a] - ray.origin[a]) * ray.inv_dir[a]
+        t1 := (b.max[a] - ray.origin[a]) * ray.inv_dir[a]
+
+        if ray.inv_dir[a] < 0 {
             t0, t1 = t1, t0
         }
 
@@ -78,7 +77,7 @@ BVHNode :: struct {
 // the primitive array is sorted according to the indices within nodes, i.e. primitives
 // within a leaf are next to each other
 BVHTree :: struct {
-    geometries: [dynamic]Primitive,
+    geometries: []Primitive,
     nodes:      [dynamic]BVHNode,
 }
 
@@ -196,7 +195,7 @@ BuilderState :: struct {
     // all boxes
     prim_boxes: []BoundingBox,
     // gets sorted in-place
-    primitives: [dynamic]Primitive,
+    primitives: []Primitive,
 }
 
 @(private = "file")
@@ -207,12 +206,7 @@ SAHBucket :: struct {
     count:  int,
 }
 
-delete_tree :: proc(tree: BVHTree) {
-    delete(tree.geometries)
-    delete(tree.nodes)
-}
-
-build_bvh_tree :: proc(prims: [dynamic]Primitive) -> BVHTree {
+build_bvh_tree :: proc(prims: []Primitive) -> BVHTree {
 
     // all bounding boxes. These are carried along during construction and are deleted at the end
     boxes := make([dynamic]BoundingBox, 0, len(prims))
@@ -497,3 +491,4 @@ get_best_split :: proc(
 
     return best_axis, best_bucket, best_costs
 }
+

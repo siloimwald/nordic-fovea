@@ -22,6 +22,15 @@ interval_contains :: proc(interval: RayInterval, t: f32) -> bool {
 Ray :: struct {
     origin:    v3,
     direction: v3,
+    inv_dir:   v3,
+}
+
+new_ray :: proc(origin: v3, direction: v3) -> Ray {
+    return Ray {
+        origin = origin,
+        direction = direction,
+        inv_dir = 1.0 / direction,
+    }
 }
 
 ray_points_at :: proc(ray: Ray, t: f32) -> v3 {
@@ -69,3 +78,4 @@ World :: struct {
     image_width:       u32,
     image_height:      u32,
 }
+

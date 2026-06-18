@@ -84,8 +84,9 @@ main :: proc() {
         return
     }
 
-    bvh := build_bvh_tree(world.geometries)
-    defer delete_tree(bvh)
+    defer delete(world.geometries)
+    bvh := build_bvh_tree(world.geometries[:])
+    defer delete(bvh.nodes)
 
     buffer := make([]image.RGB_Pixel, world.image_width * world.image_height)
     defer delete(buffer)
@@ -157,3 +158,4 @@ main :: proc() {
     }
 
 }
+
