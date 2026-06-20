@@ -43,6 +43,8 @@ Intersection :: struct {
     ray_t:      f32,
     material:   u32,
     front_face: bool,
+    tex_u:      f32,
+    tex_v:      f32,
 }
 
 set_face_normal :: proc(isec: ^Intersection, ray_dir: v3, outward_normal: v3) {
@@ -73,6 +75,7 @@ near_zero :: proc(v: v3) -> bool {
 World :: struct {
     geometries:        [dynamic]Primitive,
     materials:         [dynamic]Material,
+    textures:          [dynamic]Texture,
     camera:            Camera,
     samples_per_pixel: u32,
     image_width:       u32,

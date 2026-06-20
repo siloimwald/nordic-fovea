@@ -5,7 +5,7 @@ Scene.samples_per_pixel = 10
 
 Set_Cam({ 13, 2, 3 }, { 0, 0, 0 }, { 0, 1, 0 }, 20, 10, 0.6)
 
-local off_limits = { x = 4, y = 0.2, z = 0 }
+local off_limits = { 4, 0.2, 0 }
 
 -- cannot deal (yet) with one-off/throw away materials, need unique
 -- names, count up each time we use something for the random spheres
@@ -16,9 +16,9 @@ for a = -11, 10, 1 do
         local material = math.random()
 
         local sphere_center = {
-            x = a + 0.9 * math.random(),
-            y = 0.2,
-            z = b + 0.9 * math.random()
+            a + 0.9 * math.random(),
+            0.2,
+            b + 0.9 * math.random()
         }
 
         if Vec_Distance(sphere_center, off_limits) > 0.9 then
@@ -26,31 +26,35 @@ for a = -11, 10, 1 do
             mat_counter = mat_counter + 1
             if material < 0.8 then
                 local matte_color = Color_Mix(Random_3f(), Random_3f())
-                Add_Matte(mat_name, matte_color.x, matte_color.y, matte_color.z)
+                Add_Matte(mat_name, matte_color)
             elseif material < 0.95 then
                 local metal_color = Random_3f(0.5, 1)
-                Add_Metal(mat_name, metal_color.x, metal_color.y, metal_color.z, math.random() * 0.5)
+                Add_Metal(mat_name, metal_color, math.random() * 0.5)
             else
                 Add_Dielectric(mat_name, 1.5)
             end
 
-            Add_Sphere(sphere_center.x, sphere_center.y, sphere_center.z, 0.2, mat_name)
+            Add_Sphere(sphere_center, 0.2, mat_name)
         end
     end
 end
 
-local ground = Add_Matte("ground", 0.5, 0.5, 0.5)
+local checker_tex_ground = Add_Checker("checker_ground", { 0.2, 0.3, 0.1 }, { 0.9, 0.9, 0.9 }, 10)
+local ground = Add_Matte("ground", checker_tex_ground)
+-- local ground = Add_Matte("ground", {0.3, 0.4, 0.2})
 
-Add_Sphere(0, -1000, -1, 1000, ground)
+Add_Sphere({0, -1000, -1}, 1000, ground)
 
 -- the three non-random spheres
-local glass = Add_Dielectric("glass", 1.5)
-Add_Sphere(0, 1, 0, 1, glass)
+-- local glass = Add_Dielectric("glass", 1.5)
+local checker_tex = Add_Checker("checker", { 0.2, 0.3, 0.1 }, { 0.9, 0.9, 0.9 }, 10)
+local checker_sphere = Add_Matte("checker_sphere", checker_tex)
+Add_Sphere({0, 1, 0}, 1, checker_sphere)
 
-local matte = Add_Matte("matte", 0.4, 0.2, 0.1)
-Add_Sphere(-4, 1, 0, 1, matte)
+local matte = Add_Matte("matte", {0.4, 0.2, 0.1})
+Add_Sphere({-4, 1, 0}, 1, matte)
 
-local metal = Add_Metal("metal", 0.7, 0.6, 0.5, 0)
-Add_Sphere(4, 1, 0, 1, metal)
+local metal = Add_Metal("metal", {0.7, 0.6, 0.5}, 0)
+Add_Sphere({4, 1, 0}, 1, metal)
 
 return Scene

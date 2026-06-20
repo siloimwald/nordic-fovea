@@ -10,11 +10,7 @@ import "core:time"
 
 max_depth :: 50
 
-color_ray :: proc(
-    tree: BVHTree,
-    materials: [dynamic]Material,
-    ray: Ray,
-) -> v3 {
+color_ray :: proc(tree: BVHTree, world: ^World, ray: Ray) -> v3 {
     ray := ray
     isec := Intersection{}
     throughput := v3{1, 1, 1}
@@ -25,20 +21,22 @@ color_ray :: proc(
             ray_out := Ray{}
             attenuation := v3{}
             do_scatter := false
-            switch m in materials[isec.material] {
+            switch &m in world.materials[isec.material] {
             case Matte:
                 do_scatter = evaluate_matte(
-                    m,
+                    &m,
                     ray,
                     &isec,
+                    world.textures[:],
                     &ray_out,
                     &attenuation,
                 )
             case Metal:
                 do_scatter = evaluate_metal(
-                    m,
+                    &m,
                     ray,
                     &isec,
+                    world.textures[:],
                     &ray_out,
                     &attenuation,
                 )
@@ -85,6 +83,8 @@ main :: proc() {
     }
 
     defer delete(world.geometries)
+    defer delete(world.textures)
+    defer delete(world.materials)
     bvh := build_bvh_tree(world.geometries[:])
     defer delete(bvh.nodes)
 
@@ -118,7 +118,7 @@ main :: proc() {
             color := v3{}
             for _ in 0 ..< world.samples_per_pixel {
                 ray := get_ray(world.camera, f32(x), f32(y))
-                color += color_ray(bvh, world.materials, ray)
+                color += color_ray(bvh, &world, ray)
             }
             color *= (1.0 / f32(world.samples_per_pixel))
             buffer[(world.image_height - y - 1) * world.image_width + x].rgb =
@@ -130,9 +130,6 @@ main :: proc() {
 
         }
     }
-
-    // deleting the tree takes care of deleting scene primitives
-    delete(world.materials)
 
     time.stopwatch_stop(&sw)
     elapsed := time.stopwatch_duration(sw)

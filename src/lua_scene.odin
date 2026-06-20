@@ -26,10 +26,18 @@ read_world :: proc(file_name: cstring) -> (World, bool) {
         return World{}, false
     }
 
+    // read textures first, as materials might reference those by name
+    lua.getfield(L, -1, "textures")
+    textures_names_to_index, textures := read_textures(L)
+    lua.pop(L, 1)
+
     // read materials first, so we can assign the material index to each
     // parsed sphere right away
     lua.getfield(L, -1, "materials")
-    material_names_to_index, materials := read_materials(L)
+    material_names_to_index, materials := read_materials(
+        L,
+        textures_names_to_index,
+    )
     lua.pop(L, 1)
 
     lua.getfield(L, -1, "spheres")
@@ -47,27 +55,121 @@ read_world :: proc(file_name: cstring) -> (World, bool) {
         fmt.println("lua stack empty, all good")
     }
 
-    fmt.println("we got", len(geom), "prims and", len(materials), "materials")
+    fmt.println(
+        "we got",
+        len(geom),
+        "prims and",
+        len(materials),
+        "materials",
+        len(textures),
+        "textures",
+    )
 
     // don't need that any longer
+    delete(textures_names_to_index)
     delete(material_names_to_index)
 
     view := linalg.matrix4_look_at(v3{13, 2, 3}, v3{0, 0, 0}, v3{0, 1, 0})
 
     return World {
             geometries = geom,
+            textures = textures,
             materials = materials,
             image_height = 225,
             image_width = 400,
             camera = make_camera(view, 400, 225, 20, 10.0, 0.6),
-            samples_per_pixel = 500,
+            samples_per_pixel = 100,
         },
         true
 }
 
+// see also read_materials
+@(private = "file")
+read_textures :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Texture) {
+    if lua.istable(L, -1) {
+        textures: [dynamic]Texture
+        names_to_index := make(map[string]u32)
+
+        lua.pushnil(L)
+
+        for lua.next(L, 2) != 0 {
+            if lua.type(L, -2) == lua.TSTRING {
+                texture_name := string(lua.tostring(L, -2))
+
+                if lua.istable(L, -1) {
+                    lua.getfield(L, -1, "type")
+                    texture_type := string(lua.tostring(L, -1))
+                    lua.pop(L, 1) // pop texture type
+                    t: Texture = nil
+
+                    if texture_type == "checker" {
+                        lua.getfield(L, -1, "even")
+                        even_color := read_float_3(L)
+                        lua.pop(L, 1)
+                        lua.getfield(L, -1, "odd")
+                        odd_color := read_float_3(L)
+                        lua.pop(L, 1)
+                        lua.getfield(L, -1, "scale")
+                        scale := f32(lua.tonumber(L, -1))
+                        lua.pop(L, 1)
+                        fmt.println(even_color, odd_color, scale)
+                        t = Checker {
+                            even  = even_color,
+                            odd   = odd_color,
+                            scale = scale,
+                        }
+                    } else {
+                        fmt.println("invalid texture type", texture_type)
+                    }
+
+                    if t != nil {
+                        names_to_index[texture_name] = u32(len(textures))
+                        append(&textures, t)
+                    }
+                }
+            }
+            lua.pop(L, 1)
+        }
+        return names_to_index, textures
+    } else {
+        fmt.println("state not a table in read_textures")
+    }
+    return nil, nil
+}
+
+// read a color/albedo for a material. If it is a string, treat it as a texture reference
+// otherwise assume it is a lua table with three floats for a plain color
+@(private = "file")
+read_albedo :: proc(
+    L: ^lua.State,
+    texture_indices: map[string]u32,
+) -> MaterialAlbedo {
+    lua.getfield(L, -1, "albedo")
+    if lua.isstring(L, -1) {
+        tex_name := string(lua.tostring(L, -1))
+        fmt.println("texture", tex_name)
+        lua.pop(L, 1)
+        // some sanity check
+        if !(tex_name in texture_indices) {
+            fmt.println("no such texture", tex_name)
+        }
+        return texture_indices[tex_name]
+    }
+    // plain color is assumed
+    a := read_float_3(L)
+    lua.pop(L, 1)
+    return v3{a[0], a[1], a[2]}
+}
+
 // returns a mapping of material names to indices in the slice of materials
 @(private = "file")
-read_materials :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Material) {
+read_materials :: proc(
+    L: ^lua.State,
+    texture_indices: map[string]u32,
+) -> (
+    map[string]u32,
+    [dynamic]Material,
+) {
 
     if lua.istable(L, -1) {
 
@@ -91,16 +193,12 @@ read_materials :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Material) {
                     m: Material = nil
 
                     if material_type == "Matte" {
-                        lua.getfield(L, -1, "albedo")
-                        albedo := read_float_3(L)
-                        lua.pop(L, 1)
+                        albedo := read_albedo(L, texture_indices)
                         m = Matte {
                             albedo = albedo,
                         }
                     } else if material_type == "Metal" {
-                        lua.getfield(L, -1, "albedo")
-                        albedo := read_float_3(L)
-                        lua.pop(L, 1)
+                        albedo := read_albedo(L, texture_indices)
                         lua.getfield(L, -1, "fuzz")
                         fuzz := f32(lua.tonumber(L, -1))
                         lua.pop(L, 1)

@@ -3,6 +3,13 @@ package fovea
 import "core:math"
 import "core:math/linalg"
 
+// the color of a material is either an index into our textures
+// or a plain RGB color
+MaterialAlbedo :: union {
+    u32,
+    v3,
+}
+
 Material :: union {
     Matte,
     Metal,
@@ -10,11 +17,11 @@ Material :: union {
 }
 
 Matte :: struct {
-    albedo: v3,
+    albedo: MaterialAlbedo,
 }
 
 Metal :: struct {
-    albedo: v3,
+    albedo: MaterialAlbedo,
     fuzz:   f32,
 }
 
@@ -22,10 +29,26 @@ Dielectric :: struct {
     ior: f32,
 }
 
+evaluate_surface_color :: proc(
+    surface: MaterialAlbedo,
+    textures: []Texture,
+    intersection: ^Intersection,
+) -> v3 {
+    switch s in surface {
+    case v3:
+        return s
+    case u32:
+        return evaluate_texture(&textures[s], intersection)
+    case:
+        return v3{0, 0, 0}
+    }
+}
+
 evaluate_matte :: proc(
-    m: Matte,
+    m: ^Matte,
     ray_in: Ray,
     isec: ^Intersection,
+    textures: []Texture,
     ray_out: ^Ray,
     attenuation: ^v3,
 ) -> bool {
@@ -35,21 +58,22 @@ evaluate_matte :: proc(
         scatter_direction = isec.normal
     }
     ray_out^ = new_ray(isec.location, scatter_direction)
-    attenuation^ = m.albedo
+    attenuation^ = evaluate_surface_color(m.albedo, textures, isec)
     return true
 }
 
 evaluate_metal :: proc(
-    m: Metal,
+    m: ^Metal,
     ray_in: Ray,
     isec: ^Intersection,
+    textures: []Texture,
     ray_out: ^Ray,
     attenuation: ^v3,
 ) -> bool {
     reflected := linalg.reflect(ray_in.direction, isec.normal)
     reflected = linalg.normalize(reflected) + (random_unit_vector() * m.fuzz)
     ray_out^ = new_ray(isec.location, reflected)
-    attenuation^ = m.albedo
+    attenuation^ = evaluate_surface_color(m.albedo, textures, isec)
     return linalg.dot(ray_out.direction, isec.normal) > 0
 }
 

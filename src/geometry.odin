@@ -69,14 +69,17 @@ intersect_sphere :: proc(
         }
 
         isec.location = ray_points_at(ray, root)
-        set_face_normal(
-            isec,
-            ray.direction,
-            (isec.location - s.center) / s.radius,
-        )
+        outward_normal := (isec.location - s.center) / s.radius
+        // texture coordinates
+        theta := math.acos(-outward_normal.y)
+        phi := math.atan2(-outward_normal.z, outward_normal.x) + math.PI
+        isec.tex_u = phi / (2.0 * math.PI)
+        isec.tex_v = theta / math.PI
+        set_face_normal(isec, ray.direction, outward_normal)
         isec.ray_t = root
         isec.material = s.material
 
         return true
     }
 }
+
