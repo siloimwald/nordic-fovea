@@ -6,12 +6,12 @@ tasks:
       - odin check src
   run-rel:
     cmds:
-      - odin run src -o:speed
+      - odin run src -o:speed -- {{.CLI_ARGS}}
   run:
     cmds:
-      - odin run src
+      - odin run src -- {{.CLI_ARGS}}
   check-leak:
     cmds:
-      - odin build src -out:fovea
-      - valgrind --leak-check=full ./fovea
+      - odin build src -out:fovea 
+      - valgrind --leak-check=full ./fovea {{.CLI_ARGS}}
       - rm fovea

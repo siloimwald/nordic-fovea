@@ -1,11 +1,13 @@
 package fovea
 
+import "core:flags"
 import "core:fmt"
 import "core:image"
 import ppm "core:image/netpbm"
 import "core:math"
 import "core:math/linalg"
 import "core:math/rand"
+import "core:os"
 import "core:time"
 
 max_depth :: 50
@@ -70,12 +72,24 @@ color_ray :: proc(tree: BVHTree, world: ^World, ray: Ray) -> v3 {
     return accumulated
 }
 
+CommandLineOptions :: struct {
+    scene_file: string `args:"required" usage:"scene file"`,
+    samples:    u32 `usage:"override sample count from scene file"`,
+}
+
 main :: proc() {
 
     // faster than the default, but still plenty "random" enough
     context.random_generator = rand.xoshiro256_random_generator()
 
-    world, ok := read_world("./scenes/book_one_final.lua")
+    opts: CommandLineOptions
+    flags.parse_or_exit(&opts, os.args)
+
+    world, ok := read_world(opts.scene_file)
+
+    if opts.samples > 0 {
+        world.samples_per_pixel = opts.samples
+    }
 
     if !ok {
         fmt.println("something failed")

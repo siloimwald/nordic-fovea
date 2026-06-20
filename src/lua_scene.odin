@@ -2,20 +2,24 @@ package fovea
 
 import "core:fmt"
 import linalg "core:math/linalg"
+import "core:strings"
 import lua "vendor:lua/5.4"
 
 // Sadly, evaluating lua and converting it to a scene is somewhat more
 // complex in odin than in rust since we cannot simply deserialize the whole thing 'magically'
 // manually poking around at the stack it is, Gemini helped with this :)
 
-read_world :: proc(file_name: cstring) -> (World, bool) {
+read_world :: proc(file_name: string) -> (World, bool) {
 
     L := lua.L_newstate()
     lua.L_openlibs(L)
     defer lua.close(L) // free the lua side memory
 
+    f_name := strings.clone_to_cstring(file_name)
+    defer delete(f_name)
+
     // run script file, check for lua side errors
-    if lua.L_dofile(L, file_name) != 0 {
+    if lua.L_dofile(L, f_name) != 0 {
         fmt.println("Lua error: ", lua.tostring(L, -1))
         return World{}, false
     }
@@ -44,6 +48,15 @@ read_world :: proc(file_name: cstring) -> (World, bool) {
     geom := read_geometry(L, material_names_to_index)
     lua.pop(L, 1) // pop spheres
 
+    // image dimensions and sample count sit at up level
+    h := u32(read_num_from_field(L, "image_height"))
+    w := u32(read_num_from_field(L, "image_width"))
+    spp := u32(read_num_from_field(L, "sampels_per_pixel"))
+
+    lua.getfield(L, -1, "camera")
+    cam := read_camera(L, w, h)
+    lua.pop(L, 1)
+
     lua.pop(L, 1) // pop root table
 
     // check that we've emptied the stack correctly
@@ -65,22 +78,39 @@ read_world :: proc(file_name: cstring) -> (World, bool) {
         "textures",
     )
 
-    // don't need that any longer
+    // don't need those any more
     delete(textures_names_to_index)
     delete(material_names_to_index)
-
-    view := linalg.matrix4_look_at(v3{13, 2, 3}, v3{0, 0, 0}, v3{0, 1, 0})
 
     return World {
             geometries = geom,
             textures = textures,
             materials = materials,
-            image_height = 225,
-            image_width = 400,
-            camera = make_camera(view, 400, 225, 20, 10.0, 0.6),
-            samples_per_pixel = 100,
+            image_height = h,
+            image_width = w,
+            camera = cam,
+            samples_per_pixel = spp,
         },
         true
+}
+
+@(private = "file")
+read_camera :: proc(L: ^lua.State, w: u32, h: u32) -> Camera {
+    if lua.istable(L, -1) {
+        look_from := read_v3_from_field(L, "look_from")
+        look_at := read_v3_from_field(L, "look_at")
+        up_dir := read_v3_from_field(L, "up")
+
+        fov := f32(read_num_from_field(L, "fov"))
+        focus := f32(read_num_from_field(L, "focus_distance"))
+        defocus := f32(read_num_from_field(L, "defocus_angle"))
+
+        view := linalg.matrix4_look_at(look_from, look_at, up_dir)
+        return make_camera(view, w, h, fov, focus, defocus)
+    } else {
+        fmt.println("camera table missing")
+        return Camera{}
+    }
 }
 
 // see also read_materials
@@ -97,22 +127,13 @@ read_textures :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Texture) {
                 texture_name := string(lua.tostring(L, -2))
 
                 if lua.istable(L, -1) {
-                    lua.getfield(L, -1, "type")
-                    texture_type := string(lua.tostring(L, -1))
-                    lua.pop(L, 1) // pop texture type
+                    texture_type := read_str_from_field(L, "type")
                     t: Texture = nil
 
                     if texture_type == "checker" {
-                        lua.getfield(L, -1, "even")
-                        even_color := read_float_3(L)
-                        lua.pop(L, 1)
-                        lua.getfield(L, -1, "odd")
-                        odd_color := read_float_3(L)
-                        lua.pop(L, 1)
-                        lua.getfield(L, -1, "scale")
-                        scale := f32(lua.tonumber(L, -1))
-                        lua.pop(L, 1)
-                        fmt.println(even_color, odd_color, scale)
+                        even_color := read_v3_from_field(L, "even")
+                        odd_color := read_v3_from_field(L, "odd")
+                        scale := f32(read_num_from_field(L, "scale"))
                         t = Checker {
                             even  = even_color,
                             odd   = odd_color,
@@ -123,6 +144,9 @@ read_textures :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Texture) {
                     }
 
                     if t != nil {
+                        if texture_name in names_to_index {
+                            fmt.println("duplicate texture", texture_name)
+                        }
                         names_to_index[texture_name] = u32(len(textures))
                         append(&textures, t)
                     }
@@ -147,7 +171,6 @@ read_albedo :: proc(
     lua.getfield(L, -1, "albedo")
     if lua.isstring(L, -1) {
         tex_name := string(lua.tostring(L, -1))
-        fmt.println("texture", tex_name)
         lua.pop(L, 1)
         // some sanity check
         if !(tex_name in texture_indices) {
@@ -182,13 +205,11 @@ read_materials :: proc(
             // pushed nil plus actual table puts us at -2
             // stack is [..., Table, Key, Value]
             if lua.type(L, -2) == lua.TSTRING {
+
                 material_name := string(lua.tostring(L, -2))
 
                 if lua.istable(L, -1) {
-                    lua.getfield(L, -1, "type")
-                    material_type := lua.tostring(L, -1)
-
-                    lua.pop(L, 1) // pop material type
+                    material_type := read_str_from_field(L, "type")
 
                     m: Material = nil
 
@@ -199,17 +220,13 @@ read_materials :: proc(
                         }
                     } else if material_type == "Metal" {
                         albedo := read_albedo(L, texture_indices)
-                        lua.getfield(L, -1, "fuzz")
-                        fuzz := f32(lua.tonumber(L, -1))
-                        lua.pop(L, 1)
+                        fuzz := f32(read_num_from_field(L, "fuzz"))
                         m = Metal {
                             albedo = albedo,
                             fuzz   = fuzz,
                         }
                     } else if material_type == "Dielectric" {
-                        lua.getfield(L, -1, "ior")
-                        ior := f32(lua.tonumber(L, -1))
-                        lua.pop(L, 1)
+                        ior := f32(read_num_from_field(L, "ior"))
                         m = Dielectric {
                             ior = ior,
                         }
@@ -252,8 +269,6 @@ read_geometry :: proc(
 
         num_spheres := lua.L_len(L, -1)
 
-        //        fmt.println("we seem to have", num_spheres, "spheres")
-
         spheres := make([dynamic]Primitive, 0, num_spheres)
 
         // one-based lua arrays
@@ -261,17 +276,9 @@ read_geometry :: proc(
             // push current sphere table onto stack
             lua.rawgeti(L, -1, lua.Integer(index))
 
-            lua.getfield(L, -1, "radius")
-            radius := f32(lua.tonumber(L, -1))
-            lua.pop(L, 1)
-
-            lua.getfield(L, -1, "material")
-            material := string(lua.tostring(L, -1))
-            lua.pop(L, 1)
-
-            lua.getfield(L, -1, "center")
-            center := read_float_3(L)
-            lua.pop(L, 1)
+            radius := f32(read_num_from_field(L, "radius"))
+            material := read_str_from_field(L, "material")
+            center := read_v3_from_field(L, "center")
 
             lua.pop(L, 1) // pop current sphere
 
@@ -309,6 +316,30 @@ read_float_3 :: proc(L: ^lua.State) -> v3 {
         // pop from stack
         lua.pop(L, 1)
     }
+    return r
+}
+
+@(private = "file")
+read_num_from_field :: proc(L: ^lua.State, field_name: cstring) -> lua.Number {
+    lua.getfield(L, -1, field_name)
+    n := lua.tonumber(L, -1)
+    lua.pop(L, 1)
+    return n
+}
+
+@(private = "file")
+read_v3_from_field :: proc(L: ^lua.State, field_name: cstring) -> v3 {
+    lua.getfield(L, -1, field_name)
+    v := read_float_3(L)
+    lua.pop(L, 1)
+    return v
+}
+
+@(private = "file")
+read_str_from_field :: proc(L: ^lua.State, field_name: cstring) -> string {
+    lua.getfield(L, -1, field_name)
+    r := string(lua.tostring(L, -1))
+    lua.pop(L, 1)
     return r
 }
 
