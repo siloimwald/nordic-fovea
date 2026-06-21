@@ -51,7 +51,7 @@ read_world :: proc(file_name: string) -> (World, bool) {
     // image dimensions and sample count sit at up level
     h := u32(read_num_from_field(L, "image_height"))
     w := u32(read_num_from_field(L, "image_width"))
-    spp := u32(read_num_from_field(L, "sampels_per_pixel"))
+    spp := u32(read_num_from_field(L, "samples_per_pixel"))
 
     lua.getfield(L, -1, "camera")
     cam := read_camera(L, w, h)

@@ -157,8 +157,12 @@ main :: proc() {
                 }
 
         }
+        // some basic progress reporting...
+        p_done := 100 * f32(x) / f32(world.image_width)
+        fmt.printf("\r %.2f %%", p_done)
     }
 
+    fmt.println()
     time.stopwatch_stop(&sw)
     elapsed := time.stopwatch_duration(sw)
 
