@@ -3,7 +3,7 @@ version: '3'
 tasks:
   check:
     cmds:
-      - odin check src
+      - odin check src -vet -vet-unused-imports -vet-unused -vet-style -vet-cast
   run-rel:
     cmds:
       - odin run src -o:speed -- {{.CLI_ARGS}}

@@ -3,7 +3,7 @@
 -- overwrite scene top level settings as needed
 
 Scene = {
-    spheres = {},
+    primitives = {},
     image_width = 400,
     image_height = 225,
     samples_per_pixel = 300,
@@ -55,10 +55,11 @@ function Add_Metal(name, albedo, fuzz)
 end
 
 function Add_Sphere(center, radius, material)
-    table.insert(Scene.spheres, {
+    table.insert(Scene.primitives, {
         center = center,
         radius = radius,
-        material = material
+        material = material,
+        type = "Sphere"
     })
 end
 
@@ -83,4 +84,15 @@ end
 
 function Color_Mix(a, b)
     return { a[1] * b[1], a[2] * b[2], a[3] * b[3] }
+end
+
+function Add_Quad(axis, min, max, position, material)
+     table.insert(Scene.primitives, {
+        axis = axis,
+        min = min,
+        max = max,
+        position = position,
+        material = material,
+        type = "Quad"
+    })
 end

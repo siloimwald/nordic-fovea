@@ -12,7 +12,7 @@ import "core:time"
 
 max_depth :: 50
 
-color_ray :: proc(tree: BVHTree, world: ^World, ray: Ray) -> v3 {
+color_ray :: proc(tree: BVHTree, ray: Ray) -> v3 {
     ray := ray
     isec := Intersection{}
     throughput := v3{1, 1, 1}
@@ -23,6 +23,8 @@ color_ray :: proc(tree: BVHTree, world: ^World, ray: Ray) -> v3 {
             ray_out := Ray{}
             attenuation := v3{}
             do_scatter := false
+            // look up material in our world which hides in the context
+            world := cast(^World)context.user_ptr
             switch &m in world.materials[isec.material] {
             case Matte:
                 do_scatter = evaluate_matte(
@@ -87,6 +89,10 @@ main :: proc() {
 
     world, ok := read_world(opts.scene_file)
 
+    // odin tricks alert. Hide world as a pointer in context
+    // this saves us from passing it around everywhere
+    context.user_ptr = &world
+
     if opts.samples > 0 {
         world.samples_per_pixel = opts.samples
     }
@@ -96,10 +102,18 @@ main :: proc() {
         return
     }
 
-    defer delete(world.geometries)
+    defer delete(world.primitives)
     defer delete(world.textures)
     defer delete(world.materials)
-    bvh := build_bvh_tree(world.geometries[:])
+    defer delete_meshes(world.meshes)
+
+    // tree traversal breaks for empty scene. Not very useful anyway...
+    if len(world.primitives) == 0 {
+        fmt.println("scene is empty!")
+        return
+    }
+
+    bvh := build_bvh_tree(world.primitives[:])
     defer delete(bvh.nodes)
 
     buffer := make([]image.RGB_Pixel, world.image_width * world.image_height)
@@ -132,7 +146,7 @@ main :: proc() {
             color := v3{}
             for _ in 0 ..< world.samples_per_pixel {
                 ray := get_ray(world.camera, f32(x), f32(y))
-                color += color_ray(bvh, &world, ray)
+                color += color_ray(bvh, ray)
             }
             color *= (1.0 / f32(world.samples_per_pixel))
             buffer[(world.image_height - y - 1) * world.image_width + x].rgb =
@@ -158,11 +172,11 @@ main :: proc() {
         samples_per_second,
     )
 
-    if img, ok := image.pixels_to_image(
+    if img, img_ok := image.pixels_to_image(
         buffer,
         int(world.image_width),
         int(world.image_height),
-    ); ok {
+    ); img_ok {
         ppm.save_to_file("output.ppm", &img)
     } else {
         fmt.println("something went wrong with the image")

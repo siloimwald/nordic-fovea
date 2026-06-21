@@ -6,9 +6,15 @@ import "core:math/linalg"
 v4 :: linalg.Vector4f32
 v3 :: linalg.Vector3f32
 v2 :: linalg.Vector2f32
-
+v3i :: [3]u32
 PosInf := math.inf_f32(1)
 NegInf := math.inf_f32(-1)
+
+Axis :: enum {
+    X = 0,
+    Y = 1,
+    Z = 2,
+}
 
 RayInterval :: struct {
     t_min: f32,
@@ -73,9 +79,11 @@ near_zero :: proc(v: v3) -> bool {
 }
 
 World :: struct {
-    geometries:        [dynamic]Primitive,
+    primitives:        [dynamic]Primitive,
     materials:         [dynamic]Material,
     textures:          [dynamic]Texture,
+    // need to store those somewhere...
+    meshes:            [dynamic]Mesh,
     camera:            Camera,
     samples_per_pixel: u32,
     image_width:       u32,

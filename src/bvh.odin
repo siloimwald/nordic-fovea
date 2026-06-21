@@ -206,6 +206,18 @@ SAHBucket :: struct {
     count:  int,
 }
 
+// adds minimal padding to bounding boxes such that no dimension is zero in size
+padded_box :: proc(bounds: ^BoundingBox) {
+    delta: f32 : 1e-5
+    ext := get_bounds_extent(bounds^)
+    for axis := 0; axis < 3; axis += 1 {
+        if ext[axis] < delta {
+            bounds.min[axis] -= delta
+            bounds.max[axis] += delta
+        }
+    }
+}
+
 build_bvh_tree :: proc(prims: []Primitive) -> BVHTree {
 
     // all bounding boxes. These are carried along during construction and are deleted at the end
@@ -217,6 +229,7 @@ build_bvh_tree :: proc(prims: []Primitive) -> BVHTree {
     // compute scene bounds and bounding boxes of all scene elements
     for p in prims {
         prim_bounds := get_primitive_bounds(p)
+        padded_box(&prim_bounds)
         scene_bounds = bounds_union(scene_bounds, prim_bounds)
         append(&boxes, prim_bounds)
     }
@@ -422,14 +435,14 @@ get_best_split :: proc(
     right: int,
     state: ^BuilderState,
 ) -> (
-    axis: int,
-    bucket: int,
-    costs: f32,
+    best_axis: int,
+    best_bucket: int,
+    best_costs: f32,
 ) {
 
-    best_bucket := -1
-    best_costs := PosInf
-    best_axis := -1
+    best_bucket = -1
+    best_costs = PosInf
+    best_axis = -1
 
     // do this for all three dimensions
     for axis := 0; axis < 3; axis += 1 {

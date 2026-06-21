@@ -1,5 +1,6 @@
 package fovea
 
+import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 
@@ -7,6 +8,12 @@ import "core:math/linalg"
 // than replacing sphere all over the place
 Primitive :: union {
     Sphere,
+    MeshTriangle,
+}
+
+MeshTriangle :: struct {
+    face_index: u32,
+    mesh_index: u32,
 }
 
 Sphere :: struct {
@@ -22,6 +29,15 @@ get_primitive_bounds :: proc(prim: Primitive) -> BoundingBox {
             min = p.center - v3{p.radius, p.radius, p.radius},
             max = p.center + v3{p.radius, p.radius, p.radius},
         }
+    case MeshTriangle:
+        // look up mesh through context
+        world := cast(^World)context.user_ptr
+        mesh := &world.meshes[p.mesh_index]
+        va, vb, vc := get_face_vertices(p, mesh)
+        mt_min := linalg.min(va, vb, vc)
+        mt_max := linalg.max(va, vb, vc)
+        // bvh will take of padding the zero size axis
+        return BoundingBox{min = mt_min, max = mt_max}
     // might as well panic
     case:
         return get_empty_bounds()
@@ -37,9 +53,71 @@ intersect_primitive :: proc(
     switch p in prim {
     case Sphere:
         return intersect_sphere(p, ray, interval, isec)
+    case MeshTriangle:
+        return intersect_mesh_triangle(p, ray, interval, isec)
     case:
         return false
     }
+}
+
+intersect_mesh_triangle :: proc(
+    mt: MeshTriangle,
+    ray: Ray,
+    interval: RayInterval,
+    isec: ^Intersection,
+) -> bool {
+
+    // dig through context to get to the meshes
+    world := cast(^World)context.user_ptr
+    mesh := &world.meshes[mt.mesh_index]
+    v0, v1, v2 := get_face_vertices(mt, mesh)
+
+    // the usual Möller–Trumbore
+
+    edge_ab := v1 - v0
+    edge_ac := v2 - v0
+
+    p_vec := linalg.cross(ray.direction, edge_ac)
+    det := linalg.dot(edge_ab, p_vec)
+
+    // parallel to triangle plane
+    if math.abs(det) < 1e-4 {
+        return false
+    }
+
+    inv_det := 1.0 / det
+
+    t_vec := ray.origin - v0
+    u := linalg.dot(t_vec, p_vec) * inv_det
+
+    if u < 0 || u > 1 {
+        return false
+    }
+
+    q_vec := linalg.cross(t_vec, edge_ab)
+    v := linalg.dot(ray.direction, q_vec) * inv_det
+
+    if v < 0 || (u + v) > 1 {
+        return false
+    }
+
+    ray_t := linalg.dot(q_vec, edge_ac) * inv_det
+
+    if !interval_contains(interval, ray_t) {
+        return false
+    }
+
+    isec.location = ray_points_at(ray, ray_t)
+    isec.ray_t = ray_t
+    isec.material = mesh.material
+
+    if !mesh.per_vertex_normal {
+        set_face_normal(isec, ray.direction, mesh.normals[mt.face_index])
+    } else {
+        assert(false, "not implemented")
+    }
+
+    return true
 }
 
 @(private = "file")

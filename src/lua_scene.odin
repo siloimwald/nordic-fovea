@@ -44,8 +44,8 @@ read_world :: proc(file_name: string) -> (World, bool) {
     )
     lua.pop(L, 1)
 
-    lua.getfield(L, -1, "spheres")
-    geom := read_geometry(L, material_names_to_index)
+    lua.getfield(L, -1, "primitives")
+    prims, meshes := read_primitives(L, material_names_to_index)
     lua.pop(L, 1) // pop spheres
 
     // image dimensions and sample count sit at up level
@@ -70,12 +70,14 @@ read_world :: proc(file_name: string) -> (World, bool) {
 
     fmt.println(
         "we got",
-        len(geom),
+        len(prims),
         "prims and",
         len(materials),
         "materials",
         len(textures),
         "textures",
+        len(meshes),
+        "meshes",
     )
 
     // don't need those any more
@@ -83,9 +85,10 @@ read_world :: proc(file_name: string) -> (World, bool) {
     delete(material_names_to_index)
 
     return World {
-            geometries = geom,
+            primitives = prims,
             textures = textures,
             materials = materials,
+            meshes = meshes,
             image_height = h,
             image_width = w,
             camera = cam,
@@ -179,7 +182,7 @@ read_albedo :: proc(
         return texture_indices[tex_name]
     }
     // plain color is assumed
-    a := read_float_3(L)
+    a := read_float_3(L, 3)
     lua.pop(L, 1)
     return v3{a[0], a[1], a[2]}
 }
@@ -261,55 +264,88 @@ read_materials :: proc(
 }
 
 @(private = "file")
-read_geometry :: proc(
+read_primitives :: proc(
     L: ^lua.State,
     material_name_to_index: map[string]u32,
-) -> [dynamic]Primitive {
+) -> (
+    [dynamic]Primitive,
+    [dynamic]Mesh,
+) {
     if lua.istable(L, -1) {
 
-        num_spheres := lua.L_len(L, -1)
+        num_prims := lua.L_len(L, -1)
 
-        spheres := make([dynamic]Primitive, 0, num_spheres)
+        prims := make([dynamic]Primitive, 0, num_prims)
+        meshes := make([dynamic]Mesh, 0)
 
         // one-based lua arrays
-        for index := 1; index <= int(num_spheres); index += 1 {
-            // push current sphere table onto stack
+        for index := 1; index <= int(num_prims); index += 1 {
+            // push current prim table onto stack
             lua.rawgeti(L, -1, lua.Integer(index))
 
-            radius := f32(read_num_from_field(L, "radius"))
+            prim_type := read_str_from_field(L, "type")
+            // this one is shared by all of them, can do material check ahead of time
             material := read_str_from_field(L, "material")
-            center := read_v3_from_field(L, "center")
-
-            lua.pop(L, 1) // pop current sphere
 
             material_index, ok := material_name_to_index[material]
-            if ok {
+
+            if !ok {
+                fmt.println("no such material", material)
+                // bail? or just keep going?
+            }
+
+            if prim_type == "Sphere" {
+
+                radius := f32(read_num_from_field(L, "radius"))
+                center := read_v3_from_field(L, "center")
+
                 append(
-                    &spheres,
+                    &prims,
                     Sphere {
                         center = center,
                         radius = radius,
                         material = material_index,
                     },
                 )
+            } else if prim_type == "Quad" {
+
+                min := read_v2_from_field(L, "min")
+                max := read_v2_from_field(L, "max")
+                position := f32(read_num_from_field(L, "position"))
+                axis := Axis(read_num_from_field(L, "axis"))
+                // build mesh and extract triangles
+                quad_mesh := make_quad(axis, position, min, max)
+                quad_mesh.material = material_index
+                append(&meshes, quad_mesh)
+                // fmt.println(meshes[0])
+                triangles := get_triangles_for_mesh(
+                    u32(len(meshes) - 1),
+                    len(quad_mesh.faces),
+                )
+                // we should delete triangles, no?
+                append(&prims, ..triangles)
+                delete(triangles)
             } else {
-                fmt.println("no such material", material)
+                fmt.println("unknown primitive type", prim_type)
             }
 
+            lua.pop(L, 1) // pop current primitive
         }
 
-        return spheres
+        return prims, meshes
     } else {
-        fmt.println("state not a table in read_geomtry")
+        fmt.println("state not a table in read_primitives")
     }
 
-    return nil
+    return nil, nil
 }
 
+// dirty reuse for v2, simply always return a [3]f32, just leave last index
+// unfilled for v2
 @(private = "file")
-read_float_3 :: proc(L: ^lua.State) -> v3 {
-    r := v3{}
-    for index := 0; index < 3; index += 1 {
+read_float_3 :: proc(L: ^lua.State, last_index: int) -> [3]f32 {
+    r: [3]f32 = {0, 0, 0}
+    for index := 0; index < last_index; index += 1 {
         // one based lua array
         lua.rawgeti(L, -1, lua.Integer(index + 1))
         r[index] = f32(lua.tonumber(L, -1))
@@ -330,9 +366,17 @@ read_num_from_field :: proc(L: ^lua.State, field_name: cstring) -> lua.Number {
 @(private = "file")
 read_v3_from_field :: proc(L: ^lua.State, field_name: cstring) -> v3 {
     lua.getfield(L, -1, field_name)
-    v := read_float_3(L)
+    v := read_float_3(L, 3)
     lua.pop(L, 1)
     return v
+}
+
+@(private = "file")
+read_v2_from_field :: proc(L: ^lua.State, field_name: cstring) -> v2 {
+    lua.getfield(L, -1, field_name)
+    v := read_float_3(L, 2)
+    lua.pop(L, 1)
+    return v.xy
 }
 
 @(private = "file")
