@@ -1,6 +1,5 @@
 package fovea
 
-import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 
@@ -70,8 +69,10 @@ intersect_mesh_triangle :: proc(
     // dig through context to get to the meshes
     world := cast(^World)context.user_ptr
     mesh := &world.meshes[mt.mesh_index]
-    v0, v1, v2 := get_face_vertices(mt, mesh)
 
+    f0, f1, f2 := get_face_indices(mt, mesh)
+
+    v0, v1, v2 := mesh.vertices[f0], mesh.vertices[f1], mesh.vertices[f2]
     // the usual Möller–Trumbore
 
     edge_ab := v1 - v0
@@ -110,6 +111,14 @@ intersect_mesh_triangle :: proc(
     isec.location = ray_points_at(ray, ray_t)
     isec.ray_t = ray_t
     isec.material = mesh.material
+
+    if mesh.per_vertex_uv {
+        // this is pretty excessive to do for every triangle when the material does not require
+        // it. Find a better way, i.e. encode into material id if we should do this at all
+        w := 1.0 - u - v
+        isec.tex_u = mesh.uv[f0].x * w + mesh.uv[f1].x * u + mesh.uv[f2].x * v
+        isec.tex_v = mesh.uv[f0].y * w + mesh.uv[f1].y * u + mesh.uv[f2].y * v
+    }
 
     if !mesh.per_vertex_normal {
         set_face_normal(isec, ray.direction, mesh.normals[mt.face_index])

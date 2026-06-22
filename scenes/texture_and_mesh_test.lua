@@ -5,23 +5,20 @@ Scene.samples_per_pixel = 10
 Scene.image_width = 1024
 Scene.image_height = 786
 
-Set_Cam({ 13, 2, 3 }, { 0, 0, 0 }, { 0, 1, 0 }, 20, 10, 0.6)
+Set_Cam({ -5, 5, 5 }, { 0, 0, 0 }, { 0, 0, 1 }, 30, 10, 0)
 
--- a plane made from two triangles with a checker-texture
--- three spheres, with image texture and noise
+-- three planes with different checker textures on all three principal axes
 
-local ground = Add_Matte("ground", {0.5, 0.5, 0.5})
-Add_Quad(1, {-20, -20}, {20, 20}, 0, ground)
+local red_checker = Add_Checker("red_checker", { 0.9, 0.9, 0.9 }, { 0.8, 0.2, 0.2 }, 20)
+local matte_red = Add_Matte("matte_red", red_checker)
+Add_Quad(1, {-1, -1}, {1, 1}, -1, matte_red) -- Y
 
--- -- the three non-random spheres
--- local glass = Add_Dielectric("glass", 1.5)
--- Add_Sphere({0, 1, 0}, 1, glass)
+local blue_checker = Add_Checker("blue_checker", { 0.9 ,0.9, 0.9 },{0.2, 0.2, 0.8}, 20)
+local matte_blue = Add_Matte("matte_blue", blue_checker)
+Add_Quad(0, {-1, -1}, {1,1}, 1, matte_blue)
 
--- local checker_tex = Add_Checker("checker_ground", { 0.2, 0.3, 0.1 }, { 0.9, 0.9, 0.9 }, 800)
--- local matte = Add_Matte("matte", checker_tex)
--- Add_Sphere({-4, 1, 0}, 1, matte)
-
--- local metal = Add_Metal("metal", {0.7, 0.6, 0.5}, 0)
--- Add_Sphere({4, 1, 0}, 1, metal)
+local green_checker = Add_Checker("green_checker", { 0.9, 0.9, 0.9 }, {0.2, 0.8, 0.2}, 20)
+local matte_green = Add_Matte("matte_green", green_checker)
+Add_Quad(2, {-1,-1}, {1,1}, -1, matte_green)
 
 return Scene

@@ -35,8 +35,8 @@ read_world :: proc(file_name: string) -> (World, bool) {
     textures_names_to_index, textures := read_textures(L)
     lua.pop(L, 1)
 
-    // read materials first, so we can assign the material index to each
-    // parsed sphere right away
+    // read materials next, so we can assign the material index to each
+    // parsed primitive right away
     lua.getfield(L, -1, "materials")
     material_names_to_index, materials := read_materials(
         L,
@@ -46,7 +46,7 @@ read_world :: proc(file_name: string) -> (World, bool) {
 
     lua.getfield(L, -1, "primitives")
     prims, meshes := read_primitives(L, material_names_to_index)
-    lua.pop(L, 1) // pop spheres
+    lua.pop(L, 1) // pop primitives
 
     // image dimensions and sample count sit at up level
     h := u32(read_num_from_field(L, "image_height"))
