@@ -10,5 +10,5 @@
 
 random in-progress render passing through
 
-(results/textures.png)
+![texture stuff](https://github.com/siloimwald/nordic-fovea/blob/main/results/textures.png)
 
