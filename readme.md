@@ -7,3 +7,8 @@
 - (not so soon) live preview with camera controls through some suitable library (SDL or whatever fits)
 - attempt to make it fast
 - side quest, do the same in Rust, compare which one _feels_ better
+
+random in-progress render passing through
+
+(results/textures.png)
+

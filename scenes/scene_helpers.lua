@@ -33,6 +33,11 @@ function Add_Checker(name, tex_even, tex_odd, scale)
     return name
 end
 
+function Add_Image_Tex(name, file_name)
+    Scene.textures[name] = { type = "image", file_name = file_name }
+    return name
+end
+
 -- albedo is either a texture name as a string or a table with three floats
 function Add_Matte(name, albedo)
     Scene.materials[name] = { albedo = albedo, type = "Matte" }

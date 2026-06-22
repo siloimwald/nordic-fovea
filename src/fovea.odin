@@ -106,6 +106,7 @@ main :: proc() {
     defer delete(world.textures)
     defer delete(world.materials)
     defer delete_meshes(world.meshes)
+    defer delete_textures(world.textures)
 
     // tree traversal breaks for empty scene. Not very useful anyway...
     if len(world.primitives) == 0 {

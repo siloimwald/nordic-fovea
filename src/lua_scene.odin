@@ -133,7 +133,16 @@ read_textures :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Texture) {
                     texture_type := read_str_from_field(L, "type")
                     t: Texture = nil
 
-                    if texture_type == "checker" {
+                    if texture_type == "image" {
+                        file_name := read_str_from_field(L, "file_name")
+                        fmt.println("reading image texture", file_name)
+
+                        img, ok := load_image_texture(file_name)
+                        if !ok {
+                            fmt.println("failed to read", file_name)
+                        }
+                        t = img
+                    } else if texture_type == "checker" {
                         even_color := read_v3_from_field(L, "even")
                         odd_color := read_v3_from_field(L, "odd")
                         scale := f32(read_num_from_field(L, "scale"))
@@ -150,6 +159,7 @@ read_textures :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Texture) {
                         if texture_name in names_to_index {
                             fmt.println("duplicate texture", texture_name)
                         }
+                        fmt.println("adding texture", texture_name)
                         names_to_index[texture_name] = u32(len(textures))
                         append(&textures, t)
                     }
