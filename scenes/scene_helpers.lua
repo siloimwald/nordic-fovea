@@ -38,6 +38,11 @@ function Add_Image_Tex(name, file_name)
     return name
 end
 
+function Add_ValueNoise_Tex(name, width, height)
+    Scene.textures[name] = { type = "valueNoise", width = width, height = height }
+    return name
+end
+
 -- albedo is either a texture name as a string or a table with three floats
 function Add_Matte(name, albedo)
     Scene.materials[name] = { albedo = albedo, type = "Matte" }

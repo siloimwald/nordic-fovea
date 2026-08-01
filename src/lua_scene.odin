@@ -151,6 +151,10 @@ read_textures :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Texture) {
                             odd   = odd_color,
                             scale = scale,
                         }
+                    } else if texture_type == "valueNoise" {
+                        width := int(read_num_from_field(L, "width"))
+                        height := int(read_num_from_field(L, "height"))
+                        t = value_noise(width, height)
                     } else {
                         fmt.println("invalid texture type", texture_type)
                     }
@@ -396,4 +400,3 @@ read_str_from_field :: proc(L: ^lua.State, field_name: cstring) -> string {
     lua.pop(L, 1)
     return r
 }
-

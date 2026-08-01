@@ -26,3 +26,7 @@ sample_unit_disk :: proc() -> v2 {
     theta := math.PI * rand.float32() * 2.0
     return v2{r * math.cos(theta), r * math.sin(theta)}
 }
+
+random_float :: proc() -> f32 {
+    return rand.float32()
+}
