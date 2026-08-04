@@ -12,3 +12,6 @@ random in-progress render passing through
 
 ![texture stuff](https://github.com/siloimwald/nordic-fovea/blob/main/results/textures.png)
 
+perlin noise, with the option to interpolate across a color band
+
+![texture stuff](https://github.com/siloimwald/nordic-fovea/blob/main/results/noise.png)
