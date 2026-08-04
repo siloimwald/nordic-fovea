@@ -57,6 +57,8 @@ read_world :: proc(file_name: string) -> (World, bool) {
     cam := read_camera(L, w, h)
     lua.pop(L, 1)
 
+    background := read_v3_from_field(L, "background")
+
     lua.pop(L, 1) // pop root table
 
     // check that we've emptied the stack correctly
@@ -93,6 +95,7 @@ read_world :: proc(file_name: string) -> (World, bool) {
             image_width = w,
             camera = cam,
             samples_per_pixel = spp,
+            background = background
         },
         true
 }

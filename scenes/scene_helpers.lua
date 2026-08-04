@@ -14,7 +14,8 @@ Scene = {
         up = { 0, 1, 0 }
     },
     textures = {},
-    materials = {}
+    materials = {},
+    background = {}
 }
 
 function Set_Cam(look_from, look_at, up, fov, focus_distance, defocus_angle)

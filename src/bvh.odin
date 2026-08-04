@@ -81,6 +81,24 @@ BVHTree :: struct {
     nodes:      [dynamic]BVHNode,
 }
 
+// useful to have for debugging i guess
+intersect_list :: proc(
+	tree: BVHTree,
+    ray: Ray,
+    interval: RayInterval,
+    intersection: ^Intersection,
+) -> bool {
+    any_hit := false
+    current_interval := interval
+    for k := 0; k < len(tree.geometries); k += 1 {
+        if intersect_primitive(tree.geometries[k], ray, current_interval, intersection) {
+            any_hit = true
+            current_interval.t_max = intersection.ray_t
+        }
+    }
+    return any_hit
+}
+
 intersect_bvh :: proc(
     tree: BVHTree,
     ray: Ray,
@@ -105,7 +123,7 @@ intersect_bvh :: proc(
         node := tree.nodes[node_index]
 
         if !ray_intersect_box(node.bounds, ray, interval) {
-            continue
+          continue
         }
 
         // leaf?
@@ -208,7 +226,8 @@ SAHBucket :: struct {
 
 // adds minimal padding to bounding boxes such that no dimension is zero in size
 padded_box :: proc(bounds: ^BoundingBox) {
-    delta: f32 : 1e-5
+	// TODO: FIXME: extremely picky, for 1e-5 and box intersection fails.
+	delta: f32 : 1e-3
     ext := get_bounds_extent(bounds^)
     for axis := 0; axis < 3; axis += 1 {
         if ext[axis] < delta {
@@ -504,4 +523,3 @@ get_best_split :: proc(
 
     return best_axis, best_bucket, best_costs
 }
-

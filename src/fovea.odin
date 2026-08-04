@@ -17,13 +17,14 @@ color_ray :: proc(tree: BVHTree, ray: Ray) -> v3 {
     isec := Intersection{}
     throughput := v3{1, 1, 1}
     accumulated := v3{}
+    // the world hides in the context
+    world := cast(^World)context.user_ptr
     for _ in 0 ..< max_depth {
         interval := RayInterval{0.0001, 1e16}
         if intersect_bvh(tree, ray, interval, &isec) {
+        // if intersect_list(tree, ray, interval, &isec) {
             ray_out := Ray{}
             attenuation := v3{}
-            // look up material in our world which hides in the context
-            world := cast(^World)context.user_ptr
 
             emission := evaluate_emission(&world.materials[isec.material], &isec, world.textures[:])
 
@@ -39,14 +40,7 @@ color_ray :: proc(tree: BVHTree, ray: Ray) -> v3 {
             }
 
         } else {
-            // sky := linalg.lerp(
-            //     v3{1, 1, 1},
-            //     v3{0.5, 0.7, 1},
-            //     (ray.direction.y + 1.0) * 0.5,
-            // )
-            // TODO: from world or scene or
-            background := v3{}
-            accumulated += throughput * background
+            accumulated += throughput * world.background
             return accumulated
         }
     }

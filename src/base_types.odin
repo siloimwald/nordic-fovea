@@ -85,8 +85,8 @@ World :: struct {
     // need to store those somewhere...
     meshes:            [dynamic]Mesh,
     camera:            Camera,
+    background:        v3,
     samples_per_pixel: u32,
     image_width:       u32,
     image_height:      u32,
 }
-

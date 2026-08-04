@@ -169,4 +169,3 @@ intersect_sphere :: proc(
         return true
     }
 }
-
