@@ -10,7 +10,7 @@ import stbi "vendor:stb/image"
 Texture :: union {
     Checker,
     ImageTexture,
-    ValueNoise,
+    NoiseTexture,
 }
 
 ImageTexture :: struct {
@@ -27,17 +27,19 @@ Checker :: struct {
     scale: f32,
 }
 
-ValueNoise :: struct {
-    values: []f32,
-    width:  int,
-    height: int,
+NoiseTexture :: struct {
+    scale:      f32,
+    noise:      PerlinNoise,
+    // optional color banding, interpolated on when provided
+    color_band: []v3,
 }
 
 delete_textures :: proc(textures: [dynamic]Texture) {
     for &tex in textures {
         #partial switch &t in tex {
-        case ValueNoise:
-            delete(t.values)
+        case NoiseTexture:
+            delete_perlin(&t.noise)
+            delete(t.color_band)
         case ImageTexture:
             if t._data_ptr != nil {
                 stbi.image_free(t._data_ptr)
@@ -59,30 +61,23 @@ evaluate_texture :: proc(
         index := tv * t.channels * t.width + tu * t.channels
         c := t.pixels[index:index + 4]
         return v3{f32(c[0]) / 255.0, f32(c[1]) / 255.0, f32(c[2]) / 255.0}
-    case ValueNoise:
-        scaled_u := intersection.tex_u * f32(t.width)
-        scaled_v := intersection.tex_v * f32(t.height)
-        x_floor := int(math.floor(scaled_u))
-        y_floor := int(math.floor(scaled_v))
-        x_low := x_floor %% t.width
-        y_low := y_floor %% t.height
-        x_high := (x_floor + 1) %% t.width
-        y_high := (y_floor + 1) %% t.height
-        smooth_u := math.smoothstep(f32(x_low), f32(x_high), scaled_u)
-        smooth_v := math.smoothstep(f32(y_low), f32(y_high), scaled_v)
-        top_lerp := math.lerp(
-            t.values[y_low * t.width + x_low],
-            t.values[y_low * t.width + x_high],
-            smooth_u,
-        )
+    case NoiseTexture:
+        turbulent_noise := turbulence(intersection.location, &t.noise, 8)
 
-        bottom_lerp := math.lerp(
-            t.values[y_high * t.width + x_low],
-            t.values[y_high * t.width + x_high],
-            smooth_u,
-        )
-        v := math.lerp(top_lerp, bottom_lerp, smooth_v)
-        return v3{v, v, v}
+        turbulent_noise =
+            (1.0 +
+                math.sin(
+                    t.scale * intersection.location.z + 10.0 * turbulent_noise,
+                ))
+
+        if len(t.color_band) > 0 {
+            turbulent_noise /= 2.0
+            return evaluate_color_band(turbulent_noise, t.color_band)
+        }
+        else {
+        	return v3{0.5, 0.5, 0.5} * turbulent_noise
+        }
+
     case Checker:
         scaled_u := intersection.tex_u * t.scale
         scaled_v := intersection.tex_v * t.scale
@@ -136,4 +131,36 @@ load_image_texture :: proc(
             _data_ptr = raw_data_ptr,
         },
         true
+}
+
+new_noise_texture :: proc(scale: f32, color_band: []v3) -> NoiseTexture {
+	return NoiseTexture {
+        noise = new_perlin(),
+        scale = scale,
+        color_band = color_band,
+    }
+}
+
+/// evaluate a given color band given a noise value in [0,1]
+evaluate_color_band :: proc(noise_value: f32, band: []v3) -> v3 {
+    if len(band) == 0 {
+        return v3{}
+    }
+
+    if len(band) == 1 {
+        return band[0]
+    }
+
+    segments := f32(len(band) - 1)
+    scaled_noise := segments * noise_value
+
+    index := int(math.floor(scaled_noise))
+
+    if index >= len(band) - 1 {
+        return band[len(band) - 1]
+    }
+
+    local_noise := scaled_noise - f32(index)
+
+    return math.lerp(band[index], band[index + 1], local_noise)
 }

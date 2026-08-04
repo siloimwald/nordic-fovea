@@ -151,10 +151,11 @@ read_textures :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Texture) {
                             odd   = odd_color,
                             scale = scale,
                         }
-                    } else if texture_type == "valueNoise" {
-                        width := int(read_num_from_field(L, "width"))
-                        height := int(read_num_from_field(L, "height"))
-                        t = value_noise(width, height)
+                    } else if texture_type == "perlin" {
+                        scale := f32(read_num_from_field(L, "scale"))
+                        // check if there is a color band
+                        color_band := read_v3_array(L, "color_band")
+                        t = new_noise_texture(scale, color_band)
                     } else {
                         fmt.println("invalid texture type", texture_type)
                     }
@@ -163,7 +164,6 @@ read_textures :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Texture) {
                         if texture_name in names_to_index {
                             fmt.println("duplicate texture", texture_name)
                         }
-                        fmt.println("adding texture", texture_name)
                         names_to_index[texture_name] = u32(len(textures))
                         append(&textures, t)
                     }
@@ -354,8 +354,6 @@ read_primitives :: proc(
     return nil, nil
 }
 
-// dirty reuse for v2, simply always return a [3]f32, just leave last index
-// unfilled for v2
 @(private = "file")
 read_float_3 :: proc(L: ^lua.State, last_index: int) -> [3]f32 {
     r: [3]f32 = {0, 0, 0}
@@ -385,6 +383,8 @@ read_v3_from_field :: proc(L: ^lua.State, field_name: cstring) -> v3 {
     return v
 }
 
+// dirty reuse for v2, simply always return a [3]f32, just leave last index
+// unfilled for v2
 @(private = "file")
 read_v2_from_field :: proc(L: ^lua.State, field_name: cstring) -> v2 {
     lua.getfield(L, -1, field_name)
@@ -399,4 +399,33 @@ read_str_from_field :: proc(L: ^lua.State, field_name: cstring) -> string {
     r := string(lua.tostring(L, -1))
     lua.pop(L, 1)
     return r
+}
+
+@(private = "file")
+read_v3_array :: proc(L: ^lua.State, field_name: cstring) -> []v3 {
+
+    lua.getfield(L, -1, field_name)
+    defer lua.pop(L, 1)
+
+    num_v3s := lua.L_len(L, -1)
+
+    // expect a table of tables
+    if lua.istable(L, -1) {
+
+        v3s := make([dynamic]v3, 0, num_v3s)
+
+        // one-based lua arrays
+        for index := 1; index <= int(num_v3s); index += 1 {
+            // push current v3 table onto stack
+            lua.rawgeti(L, -1, lua.Integer(index))
+            next_v3 := read_float_3(L, 3)
+            append(&v3s, next_v3)
+            lua.pop(L, 1) // pop current v3
+        }
+        return v3s[:]
+    } else {
+        fmt.println("state not a table in read_v3_array")
+    }
+
+    return nil
 }

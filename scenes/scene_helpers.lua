@@ -38,8 +38,9 @@ function Add_Image_Tex(name, file_name)
     return name
 end
 
-function Add_ValueNoise_Tex(name, width, height)
-    Scene.textures[name] = { type = "valueNoise", width = width, height = height }
+function Add_PerlinNoise_Tex(name, scale, color_band)
+    color_band = color_band or {}
+    Scene.textures[name] = { type = "perlin", scale = scale, color_band = color_band }
     return name
 end
 
