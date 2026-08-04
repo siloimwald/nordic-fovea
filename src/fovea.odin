@@ -22,37 +22,14 @@ color_ray :: proc(tree: BVHTree, ray: Ray) -> v3 {
         if intersect_bvh(tree, ray, interval, &isec) {
             ray_out := Ray{}
             attenuation := v3{}
-            do_scatter := false
             // look up material in our world which hides in the context
             world := cast(^World)context.user_ptr
-            switch &m in world.materials[isec.material] {
-            case Matte:
-                do_scatter = evaluate_matte(
-                    &m,
-                    ray,
-                    &isec,
-                    world.textures[:],
-                    &ray_out,
-                    &attenuation,
-                )
-            case Metal:
-                do_scatter = evaluate_metal(
-                    &m,
-                    ray,
-                    &isec,
-                    world.textures[:],
-                    &ray_out,
-                    &attenuation,
-                )
-            case Dielectric:
-                do_scatter = evaluate_dielectric(
-                    m,
-                    ray,
-                    &isec,
-                    &ray_out,
-                    &attenuation,
-                )
-            }
+
+            emission := evaluate_emission(&world.materials[isec.material], &isec, world.textures[:])
+
+            accumulated += (throughput * emission)
+
+            do_scatter := evaluate_material(&world.materials[isec.material], ray, &isec, world.textures[:], &ray_out, &attenuation)
 
             if do_scatter {
                 ray = ray_out
@@ -62,12 +39,14 @@ color_ray :: proc(tree: BVHTree, ray: Ray) -> v3 {
             }
 
         } else {
-            sky := linalg.lerp(
-                v3{1, 1, 1},
-                v3{0.5, 0.7, 1},
-                (ray.direction.y + 1.0) * 0.5,
-            )
-            accumulated += throughput * sky
+            // sky := linalg.lerp(
+            //     v3{1, 1, 1},
+            //     v3{0.5, 0.7, 1},
+            //     (ray.direction.y + 1.0) * 0.5,
+            // )
+            // TODO: from world or scene or
+            background := v3{}
+            accumulated += throughput * background
             return accumulated
         }
     }
@@ -188,4 +167,3 @@ main :: proc() {
     }
 
 }
-

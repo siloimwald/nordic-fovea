@@ -247,6 +247,11 @@ read_materials :: proc(
                         m = Dielectric {
                             ior = ior,
                         }
+                    } else if material_type == "Emissive" {
+                        albedo := read_albedo(L, texture_indices)
+                        m = Emissive {
+                        	albedo = albedo
+                        }
                     } else {
                         fmt.println("unknown material type", material_type)
                     }

@@ -14,6 +14,11 @@ Material :: union {
     Matte,
     Metal,
     Dielectric,
+    Emissive,
+}
+
+Emissive :: struct {
+    albedo: MaterialAlbedo,
 }
 
 Matte :: struct {
@@ -99,3 +104,33 @@ evaluate_dielectric :: proc(
     return true
 }
 
+evaluate_emission :: proc(m: ^Material, isec: ^Intersection, textures: []Texture) -> v3 {
+    #partial switch &m in m {
+    case Emissive:
+        return evaluate_surface_color(m.albedo, textures, isec)
+    }
+    return v3{}
+}
+
+evaluate_material :: proc(
+    m: ^Material,
+    ray: Ray,
+    isec: ^Intersection,
+    textures: []Texture,
+    ray_out: ^Ray,
+    attenuation: ^v3,
+) -> bool {
+
+    switch &m in m {
+    case Emissive:
+        return false
+    case Matte:
+        return evaluate_matte(&m, ray, isec, textures, ray_out, attenuation)
+    case Metal:
+        return evaluate_metal(&m, ray, isec, textures, ray_out, attenuation)
+    case Dielectric:
+        return evaluate_dielectric(m, ray, isec, ray_out, attenuation)
+    }
+
+    return false
+}

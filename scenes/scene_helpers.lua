@@ -44,6 +44,11 @@ function Add_PerlinNoise_Tex(name, scale, color_band)
     return name
 end
 
+function Add_Emissive(name, texture)
+    Scene.materials[name] = { type = "Emissive", albedo = texture }
+    return name
+end
+
 -- albedo is either a texture name as a string or a table with three floats
 function Add_Matte(name, albedo)
     Scene.materials[name] = { albedo = albedo, type = "Matte" }
