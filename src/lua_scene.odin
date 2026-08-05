@@ -49,9 +49,9 @@ read_world :: proc(file_name: string) -> (World, bool) {
     lua.pop(L, 1) // pop primitives
 
     // image dimensions and sample count sit at up level
-    h := u32(read_num_from_field(L, "image_height"))
-    w := u32(read_num_from_field(L, "image_width"))
-    spp := u32(read_num_from_field(L, "samples_per_pixel"))
+    h := int(read_num_from_field(L, "image_height"))
+    w := int(read_num_from_field(L, "image_width"))
+    spp := int(read_num_from_field(L, "samples_per_pixel"))
 
     lua.getfield(L, -1, "camera")
     cam := read_camera(L, w, h)
@@ -95,13 +95,13 @@ read_world :: proc(file_name: string) -> (World, bool) {
             image_width = w,
             camera = cam,
             samples_per_pixel = spp,
-            background = background
+            background = background,
         },
         true
 }
 
 @(private = "file")
-read_camera :: proc(L: ^lua.State, w: u32, h: u32) -> Camera {
+read_camera :: proc(L: ^lua.State, w: int, h: int) -> Camera {
     if lua.istable(L, -1) {
         look_from := read_v3_from_field(L, "look_from")
         look_at := read_v3_from_field(L, "look_at")
@@ -253,7 +253,7 @@ read_materials :: proc(
                     } else if material_type == "Emissive" {
                         albedo := read_albedo(L, texture_indices)
                         m = Emissive {
-                        	albedo = albedo
+                            albedo = albedo,
                         }
                     } else {
                         fmt.println("unknown material type", material_type)

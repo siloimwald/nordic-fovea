@@ -5,8 +5,8 @@ import "core:math/linalg"
 
 make_camera :: proc(
     look_at: linalg.Matrix4f32,
-    image_width: u32,
-    image_height: u32,
+    image_width: int,
+    image_height: int,
     vertical_fov: f32,
     focus_distance: f32,
     defocus_angle: f32,
@@ -58,4 +58,3 @@ get_ray :: proc(c: Camera, px: f32, py: f32) -> Ray {
 
     return new_ray(origin_world, linalg.normalize(direction_world))
 }
-
