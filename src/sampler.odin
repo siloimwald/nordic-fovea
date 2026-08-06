@@ -1,8 +1,5 @@
 package fovea
 
-// we might want to switch out the generator later
-// also need to ensure things are thread-safe
-
 import "core:math"
 import "core:math/rand"
 
@@ -29,4 +26,13 @@ sample_unit_disk :: proc() -> v2 {
 
 random_float :: proc() -> f32 {
     return rand.float32()
+}
+
+// used to initialize xoshiro
+next_splitmix :: proc(s: ^u64) -> u64 {
+    s^ += 0x9e3779b97f4a7c15
+    z := s^
+    z = (z ~ (z >> 30)) * 0xbf58476d1ce4e5b9
+    z = (z ~ (z >> 27)) * 0x94d049bb133111eb
+    return z ~ (z >> 31)
 }
