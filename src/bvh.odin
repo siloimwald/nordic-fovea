@@ -1,3 +1,4 @@
+#+private file
 package fovea
 
 import "core:container/queue"
@@ -10,57 +11,16 @@ import "core:math/linalg"
 */
 
 // max tree depth
-@(private = "file")
 max_depth :: 12
 
 // buckets to use for surface area heuristic
-@(private = "file")
 bucket_count :: 12
 
 // don't split further if node volume goes below this value
-@(private = "file")
 volume_threshold :: 1e-4
 
 // don't split further if node has at most this amount of primitives
-@(private = "file")
 min_prim_count :: 2
-
-// a bounding box is defined by the two positions that are min/max in each dimension
-BoundingBox :: struct {
-    min: v3,
-    max: v3,
-}
-
-ray_intersect_box :: proc(
-    b: BoundingBox,
-    ray: Ray,
-    interval: RayInterval,
-) -> bool {
-
-    interval := interval
-
-    for a := 0; a < 3; a += 1 {
-        t0 := (b.min[a] - ray.origin[a]) * ray.inv_dir[a]
-        t1 := (b.max[a] - ray.origin[a]) * ray.inv_dir[a]
-
-        if ray.inv_dir[a] < 0 {
-            t0, t1 = t1, t0
-        }
-
-        if t0 > interval.t_min {
-            interval.t_min = t0
-        }
-
-        if t1 < interval.t_max {
-            interval.t_max = t1
-        }
-
-        if interval.t_max <= interval.t_min {
-            return false
-        }
-    }
-    return true
-}
 
 // a node within the BVH tree
 BVHNode :: struct {
@@ -76,12 +36,14 @@ BVHNode :: struct {
 // the whole tree is simply all the nodes, index 0 being the root
 // the primitive array is sorted according to the indices within nodes, i.e. primitives
 // within a leaf are next to each other
+@(private)
 BVHTree :: struct {
     geometries: []Primitive,
     nodes:      [dynamic]BVHNode,
 }
 
 // useful to have for debugging i guess
+@(private)
 intersect_list :: proc(
     tree: BVHTree,
     ray: Ray,
@@ -105,6 +67,7 @@ intersect_list :: proc(
     return any_hit
 }
 
+@(private)
 intersect_bvh :: proc(
     tree: BVHTree,
     ray: Ray,
@@ -155,49 +118,9 @@ intersect_bvh :: proc(
     return hit
 }
 
-// creates the empty box, spanning min=[inf,..] to max[-inf]
-// i.e. union on this and any other 'normal' box should yield the normal box
-get_empty_bounds :: proc() -> BoundingBox {
-    return BoundingBox {
-        min = v3{PosInf, PosInf, PosInf},
-        max = v3{NegInf, NegInf, NegInf},
-    }
-}
-
-// compute the union of two bounding box, such that the result tightly contains both argument boxes
-bounds_union :: proc(a: BoundingBox, b: BoundingBox) -> BoundingBox {
-    return BoundingBox {
-        min = linalg.min(a.min, b.min),
-        max = linalg.max(a.max, b.max),
-    }
-}
-
-// compute the size of the bounding box in all three dimensions
-get_bounds_extent :: proc(bounds: BoundingBox) -> v3 {
-    return bounds.max - bounds.min
-}
-
-// compute the geometric center of the box
-get_bounds_centroid :: proc(bounds: BoundingBox) -> v3 {
-    return bounds.min * 0.5 + bounds.max * 0.5
-}
-
-// gets the bounding box volume
-get_bounds_volume :: proc(bounds: BoundingBox) -> f32 {
-    ext := get_bounds_extent(bounds)
-    return ext.x * ext.y * ext.z
-}
-
-// area of box
-get_bounds_area :: proc(bounds: BoundingBox) -> f32 {
-    ext := get_bounds_extent(bounds)
-    return 2.0 * (ext.x * ext.y + ext.y * ext.z + ext.z * ext.x)
-}
-
 // from pbrt book. used for bucket/bin projection,
 // given a primitive centroid and the centroid bounds of
 // all primitives it scales offsets of primitive centroids from 0,0,0 to 1,1,1
-@(private = "file")
 get_offset :: proc(bounds: BoundingBox, centroid: v3) -> v3 {
     o := centroid - bounds.min
     ext := get_bounds_extent(bounds)
@@ -212,7 +135,6 @@ get_offset :: proc(bounds: BoundingBox, centroid: v3) -> v3 {
 // helper struct to group parameters during recursive tree building
 // this keeps track of the global state and/or holds state that does not
 // change across calls
-@(private = "file")
 BuilderState :: struct {
     // current nodes
     nodes:      [dynamic]BVHNode,
@@ -222,7 +144,6 @@ BuilderState :: struct {
     primitives: []Primitive,
 }
 
-@(private = "file")
 SAHBucket :: struct {
     // bounds of this bucket
     bounds: BoundingBox,
@@ -243,6 +164,7 @@ padded_box :: proc(bounds: ^BoundingBox) {
     }
 }
 
+@(private)
 build_bvh_tree :: proc(prims: []Primitive) -> BVHTree {
 
     // all bounding boxes. These are carried along during construction and are deleted at the end
@@ -319,7 +241,6 @@ build_bvh_tree :: proc(prims: []Primitive) -> BVHTree {
     return BVHTree{nodes = state.nodes, geometries = state.primitives}
 }
 
-@(private = "file")
 make_leaf :: proc(
     state: ^BuilderState,
     box: BoundingBox,
@@ -332,7 +253,6 @@ make_leaf :: proc(
     )
 }
 
-@(private = "file")
 bucket_projection :: proc(
     node_centroid: BoundingBox,
     prim_centroid: v3,
@@ -347,7 +267,6 @@ bucket_projection :: proc(
     return b
 }
 
-@(private = "file")
 build_node :: proc(
     node_bounds: BoundingBox,
     left: int,
@@ -452,7 +371,6 @@ build_node :: proc(
     }
 }
 
-@(private = "file")
 get_best_split :: proc(
     node_centroid_bounds: BoundingBox, // bounding box of all centroids in current node
     node_area: f32,

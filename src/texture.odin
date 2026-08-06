@@ -73,9 +73,8 @@ evaluate_texture :: proc(
         if len(t.color_band) > 0 {
             turbulent_noise /= 2.0
             return evaluate_color_band(turbulent_noise, t.color_band)
-        }
-        else {
-        	return v3{0.5, 0.5, 0.5} * turbulent_noise
+        } else {
+            return v3{0.5, 0.5, 0.5} * turbulent_noise
         }
 
     case Checker:
@@ -134,14 +133,14 @@ load_image_texture :: proc(
 }
 
 new_noise_texture :: proc(scale: f32, color_band: []v3) -> NoiseTexture {
-	return NoiseTexture {
+    return NoiseTexture {
         noise = new_perlin(),
         scale = scale,
         color_band = color_band,
     }
 }
 
-/// evaluate a given color band given a noise value in [0,1]
+// evaluate a given color band given a noise value in [0,1]
 evaluate_color_band :: proc(noise_value: f32, band: []v3) -> v3 {
     if len(band) == 0 {
         return v3{}

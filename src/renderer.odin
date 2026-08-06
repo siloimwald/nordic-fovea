@@ -9,7 +9,6 @@ import "core:math/rand"
 import "core:sync/chan"
 import "core:thread"
 
-@(private = "file")
 bvh_tree: BVHTree
 
 // center piece goes on top
@@ -62,7 +61,7 @@ color_ray :: proc(ray: Ray) -> v3 {
 }
 
 // render the scene into the given image buffer
-@(private)
+@(private) // explictly expose this one
 render_world :: proc(
     world: ^World,
     image_buffer: []image.RGB_Pixel,
@@ -205,7 +204,6 @@ consume_tile :: proc(task: thread.Task) {
     }
 }
 
-@(private = "file")
 render_multi_threaded :: proc(world: ^World, image_buffer: []image.RGB_Pixel) {
     // setup the whole thread/task pool
     pool: thread.Pool
@@ -259,7 +257,6 @@ render_multi_threaded :: proc(world: ^World, image_buffer: []image.RGB_Pixel) {
     thread.pool_finish(&pool)
 }
 
-@(private = "file")
 render_single_threaded :: proc(
     world: ^World,
     image_buffer: []image.RGB_Pixel,
@@ -291,7 +288,6 @@ render_single_threaded :: proc(
     }
 }
 
-@(private = "file")
 gamma_correction := proc(ch: f32) -> u8 {
     ch := ch
     if ch > 0 {

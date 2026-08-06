@@ -35,7 +35,7 @@ get_primitive_bounds :: proc(prim: Primitive) -> BoundingBox {
         va, vb, vc := get_face_vertices(p, mesh)
         mt_min := linalg.min(va, vb, vc)
         mt_max := linalg.max(va, vb, vc)
-        // bvh will take of padding the zero size axis
+        // bvh will take care of padding the zero size axis
         return BoundingBox{min = mt_min, max = mt_max}
     // might as well panic
     case:
@@ -59,6 +59,7 @@ intersect_primitive :: proc(
     }
 }
 
+@(private = "file")
 intersect_mesh_triangle :: proc(
     mt: MeshTriangle,
     ray: Ray,

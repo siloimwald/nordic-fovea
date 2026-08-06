@@ -34,6 +34,7 @@ Dielectric :: struct {
     ior: f32,
 }
 
+@(private = "file")
 evaluate_surface_color :: proc(
     surface: MaterialAlbedo,
     textures: []Texture,
@@ -49,6 +50,7 @@ evaluate_surface_color :: proc(
     }
 }
 
+@(private = "file")
 evaluate_matte :: proc(
     m: ^Matte,
     ray_in: Ray,
@@ -67,6 +69,7 @@ evaluate_matte :: proc(
     return true
 }
 
+@(private = "file")
 evaluate_metal :: proc(
     m: ^Metal,
     ray_in: Ray,
@@ -82,6 +85,7 @@ evaluate_metal :: proc(
     return linalg.dot(ray_out.direction, isec.normal) > 0
 }
 
+@(private = "file")
 evaluate_dielectric :: proc(
     m: Dielectric,
     ray_in: Ray,
@@ -104,7 +108,11 @@ evaluate_dielectric :: proc(
     return true
 }
 
-evaluate_emission :: proc(m: ^Material, isec: ^Intersection, textures: []Texture) -> v3 {
+evaluate_emission :: proc(
+    m: ^Material,
+    isec: ^Intersection,
+    textures: []Texture,
+) -> v3 {
     #partial switch &m in m {
     case Emissive:
         return evaluate_surface_color(m.albedo, textures, isec)

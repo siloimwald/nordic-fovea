@@ -1,3 +1,4 @@
+#+private file
 package fovea
 
 import "core:fmt"
@@ -9,6 +10,7 @@ import lua "vendor:lua/5.4"
 // complex in odin than in rust since we cannot simply deserialize the whole thing 'magically'
 // manually poking around at the stack it is, Gemini helped with this :)
 
+@(private)
 read_world :: proc(file_name: string) -> (World, bool) {
 
     L := lua.L_newstate()
@@ -100,7 +102,6 @@ read_world :: proc(file_name: string) -> (World, bool) {
         true
 }
 
-@(private = "file")
 read_camera :: proc(L: ^lua.State, w: int, h: int) -> Camera {
     if lua.istable(L, -1) {
         look_from := read_v3_from_field(L, "look_from")
@@ -120,7 +121,6 @@ read_camera :: proc(L: ^lua.State, w: int, h: int) -> Camera {
 }
 
 // see also read_materials
-@(private = "file")
 read_textures :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Texture) {
     if lua.istable(L, -1) {
         textures: [dynamic]Texture
@@ -183,7 +183,6 @@ read_textures :: proc(L: ^lua.State) -> (map[string]u32, [dynamic]Texture) {
 
 // read a color/albedo for a material. If it is a string, treat it as a texture reference
 // otherwise assume it is a lua table with three floats for a plain color
-@(private = "file")
 read_albedo :: proc(
     L: ^lua.State,
     texture_indices: map[string]u32,
@@ -205,7 +204,6 @@ read_albedo :: proc(
 }
 
 // returns a mapping of material names to indices in the slice of materials
-@(private = "file")
 read_materials :: proc(
     L: ^lua.State,
     texture_indices: map[string]u32,
@@ -285,7 +283,6 @@ read_materials :: proc(
     return nil, nil
 }
 
-@(private = "file")
 read_primitives :: proc(
     L: ^lua.State,
     material_name_to_index: map[string]u32,
@@ -362,7 +359,6 @@ read_primitives :: proc(
     return nil, nil
 }
 
-@(private = "file")
 read_float_3 :: proc(L: ^lua.State, last_index: int) -> [3]f32 {
     r: [3]f32 = {0, 0, 0}
     for index := 0; index < last_index; index += 1 {
@@ -375,7 +371,6 @@ read_float_3 :: proc(L: ^lua.State, last_index: int) -> [3]f32 {
     return r
 }
 
-@(private = "file")
 read_num_from_field :: proc(L: ^lua.State, field_name: cstring) -> lua.Number {
     lua.getfield(L, -1, field_name)
     n := lua.tonumber(L, -1)
@@ -383,7 +378,6 @@ read_num_from_field :: proc(L: ^lua.State, field_name: cstring) -> lua.Number {
     return n
 }
 
-@(private = "file")
 read_v3_from_field :: proc(L: ^lua.State, field_name: cstring) -> v3 {
     lua.getfield(L, -1, field_name)
     v := read_float_3(L, 3)
@@ -393,7 +387,6 @@ read_v3_from_field :: proc(L: ^lua.State, field_name: cstring) -> v3 {
 
 // dirty reuse for v2, simply always return a [3]f32, just leave last index
 // unfilled for v2
-@(private = "file")
 read_v2_from_field :: proc(L: ^lua.State, field_name: cstring) -> v2 {
     lua.getfield(L, -1, field_name)
     v := read_float_3(L, 2)
@@ -401,7 +394,6 @@ read_v2_from_field :: proc(L: ^lua.State, field_name: cstring) -> v2 {
     return v.xy
 }
 
-@(private = "file")
 read_str_from_field :: proc(L: ^lua.State, field_name: cstring) -> string {
     lua.getfield(L, -1, field_name)
     r := string(lua.tostring(L, -1))
@@ -409,7 +401,6 @@ read_str_from_field :: proc(L: ^lua.State, field_name: cstring) -> string {
     return r
 }
 
-@(private = "file")
 read_v3_array :: proc(L: ^lua.State, field_name: cstring) -> []v3 {
 
     lua.getfield(L, -1, field_name)
