@@ -247,7 +247,7 @@ render_multi_threaded :: proc(world: ^World, image_buffer: []image.RGB_Pixel) {
     for t := 0; t < thread_count; t = t + 1 {
         thread.pool_add_task(
             &pool,
-            context.allocator,
+            runtime.nil_allocator(),
             consume_tile,
             &consumer_data,
         )

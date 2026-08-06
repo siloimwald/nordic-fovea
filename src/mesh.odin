@@ -15,7 +15,7 @@ Mesh :: struct {
     material:          u32,
 }
 
-delete_meshes :: proc(meshes: [dynamic]Mesh) {
+delete_meshes :: proc(meshes: []Mesh) {
     for &m in meshes {
         delete(m.normals)
         delete(m.faces)
@@ -132,4 +132,3 @@ make_quad :: proc(axis: Axis, position: f32, p0: v2, p1: v2) -> Mesh {
         // per vertex normals do not really make sense for a quad (yet)
     }
 }
-

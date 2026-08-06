@@ -1,7 +1,7 @@
 -- currently needs to match the working directory odin is run from
 dofile('./scenes/scene_helpers.lua')
 
-Scene.samples_per_pixel = 1500
+Scene.samples_per_pixel = 5
 Scene.image_width = 512
 Scene.image_height = 384
 Scene.background = { 0.3, 0.5, 0.7 }

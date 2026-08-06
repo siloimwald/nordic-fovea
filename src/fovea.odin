@@ -15,11 +15,15 @@ CommandLineOptions :: struct {
     scene_file:      string `args:"required" usage:"scene file"`,
     samples:         int `usage:"override sample count from scene file"`,
     single_threaded: bool `usage:"use a single thread"`,
+    output:          string `usage:"output file name (ppm)"`,
 }
 
 main :: proc() {
 
-    opts: CommandLineOptions
+    opts := CommandLineOptions {
+        output = "output.ppm",
+    }
+
     flags.parse_or_exit(&opts, os.args)
 
     world, ok := read_world(opts.scene_file)
@@ -82,7 +86,7 @@ main :: proc() {
         int(world.image_width),
         int(world.image_height),
     ); img_ok {
-        ppm.save_to_file("output.ppm", &img)
+        ppm.save_to_file(opts.output, &img)
     } else {
         fmt.println("something went wrong trying to save the image")
     }

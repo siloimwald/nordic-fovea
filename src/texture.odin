@@ -34,7 +34,7 @@ NoiseTexture :: struct {
     color_band: []v3,
 }
 
-delete_textures :: proc(textures: [dynamic]Texture) {
+delete_textures :: proc(textures: []Texture) {
     for &tex in textures {
         #partial switch &t in tex {
         case NoiseTexture:

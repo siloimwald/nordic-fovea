@@ -89,10 +89,10 @@ read_world :: proc(file_name: string) -> (World, bool) {
     delete(material_names_to_index)
 
     return World {
-            primitives = prims,
-            textures = textures,
-            materials = materials,
-            meshes = meshes,
+            primitives = prims[:],
+            textures = textures[:],
+            materials = materials[:],
+            meshes = meshes[:],
             image_height = h,
             image_width = w,
             camera = cam,

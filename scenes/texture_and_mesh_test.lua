@@ -4,6 +4,7 @@ dofile('./scenes/scene_helpers.lua')
 Scene.samples_per_pixel = 2
 Scene.image_width = 512
 Scene.image_height = 384
+Scene.background = { 0.3, 0.5, 0.7 }
 
 Set_Cam({ 5, -5, 5 }, { 0, 0, 0 }, { 0, 1, 0 }, 25, 10, 0)
 

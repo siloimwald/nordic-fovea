@@ -79,11 +79,11 @@ near_zero :: proc(v: v3) -> bool {
 }
 
 World :: struct {
-    primitives:        [dynamic]Primitive,
-    materials:         [dynamic]Material,
-    textures:          [dynamic]Texture,
+    primitives:        []Primitive,
+    materials:         []Material,
+    textures:          []Texture,
     // need to store those somewhere...
-    meshes:            [dynamic]Mesh,
+    meshes:            []Mesh,
     camera:            Camera,
     background:        v3,
     samples_per_pixel: int,
