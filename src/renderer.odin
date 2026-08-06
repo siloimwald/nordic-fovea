@@ -31,7 +31,6 @@ color_ray :: proc(ray: Ray) -> v3 {
             emission := evaluate_emission(
                 &world.materials[isec.material],
                 &isec,
-                world.textures[:],
             )
 
             accumulated += (throughput * emission)
@@ -40,7 +39,6 @@ color_ray :: proc(ray: Ray) -> v3 {
                 &world.materials[isec.material],
                 ray,
                 &isec,
-                world.textures[:],
                 &ray_out,
                 &attenuation,
             )

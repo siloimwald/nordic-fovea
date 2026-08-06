@@ -108,11 +108,8 @@ evaluate_dielectric :: proc(
     return true
 }
 
-evaluate_emission :: proc(
-    m: ^Material,
-    isec: ^Intersection,
-    textures: []Texture,
-) -> v3 {
+evaluate_emission :: proc(m: ^Material, isec: ^Intersection) -> v3 {
+    textures := (cast(^World)context.user_ptr).textures
     #partial switch &m in m {
     case Emissive:
         return evaluate_surface_color(m.albedo, textures, isec)
@@ -124,11 +121,11 @@ evaluate_material :: proc(
     m: ^Material,
     ray: Ray,
     isec: ^Intersection,
-    textures: []Texture,
     ray_out: ^Ray,
     attenuation: ^v3,
 ) -> bool {
 
+    textures := (cast(^World)context.user_ptr).textures
     switch &m in m {
     case Emissive:
         return false
