@@ -9,6 +9,7 @@ v2 :: linalg.Vector2f32
 v3i :: [3]u32
 PosInf := math.inf_f32(1)
 NegInf := math.inf_f32(-1)
+simd_4xf32 :: #simd[4]f32
 
 Axis :: enum {
     X = 0,

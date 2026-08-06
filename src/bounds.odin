@@ -1,6 +1,8 @@
 package fovea
 
+import "core:fmt"
 import "core:math/linalg"
+import "core:simd"
 
 // a bounding box is defined by the two positions that are min/max in each dimension
 BoundingBox :: struct {
@@ -8,35 +10,63 @@ BoundingBox :: struct {
     max: v3,
 }
 
-ray_intersect_box :: proc(
-    b: BoundingBox,
-    ray: Ray,
-    interval: RayInterval,
-) -> bool {
+when simd.HAS_HARDWARE_SIMD {
+    ray_intersect_box :: proc(
+        b: BoundingBox,
+        ray: Ray,
+        interval: RayInterval,
+    ) -> bool {
 
-    interval := interval
+        interval := interval
 
-    for a := 0; a < 3; a += 1 {
-        t0 := (b.min[a] - ray.origin[a]) * ray.inv_dir[a]
-        t1 := (b.max[a] - ray.origin[a]) * ray.inv_dir[a]
+        org := simd_4xf32{ray.origin.x, ray.origin.y, ray.origin.z, 0}
+        inv := simd_4xf32{ray.inv_dir.x, ray.inv_dir.y, ray.inv_dir.z, 1.0}
 
-        if ray.inv_dir[a] < 0 {
-            t0, t1 = t1, t0
-        }
+        min_box := simd_4xf32{b.min.x, b.min.y, b.min.z, NegInf}
+        max_box := simd_4xf32{b.max.x, b.max.y, b.max.z, PosInf}
 
-        if t0 > interval.t_min {
-            interval.t_min = t0
-        }
+        t0_simd := (min_box - org) * inv
+        t1_simd := (max_box - org) * inv
 
-        if t1 < interval.t_max {
-            interval.t_max = t1
-        }
+        min := simd.min(t0_simd, t1_simd)
+        max := simd.max(t0_simd, t1_simd)
 
-        if interval.t_max <= interval.t_min {
-            return false
-        }
+        t_far := simd.reduce_min(max)
+        t_near := simd.reduce_max(min)
+
+        return t_near <= t_far && t_far > 0
     }
-    return true
+} else {
+    ray_intersect_box :: proc(
+        b: BoundingBox,
+        ray: Ray,
+        interval: RayInterval,
+    ) -> bool {
+
+        interval := interval
+
+        for a := 0; a < 3; a += 1 {
+            t0 := (b.min[a] - ray.origin[a]) * ray.inv_dir[a]
+            t1 := (b.max[a] - ray.origin[a]) * ray.inv_dir[a]
+
+            if ray.inv_dir[a] < 0 {
+                t0, t1 = t1, t0
+            }
+
+            if t0 > interval.t_min {
+                interval.t_min = t0
+            }
+
+            if t1 < interval.t_max {
+                interval.t_max = t1
+            }
+
+            if interval.t_max <= interval.t_min {
+                return false
+            }
+        }
+        return true
+    }
 }
 
 // creates the empty box, spanning min=[inf,..] to max[-inf]
